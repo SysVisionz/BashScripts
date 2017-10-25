@@ -1,0 +1,84 @@
+#!/bin/bash
+
+function changeDirectory()
+{
+    echo "Please enter your React Native Application directory"
+    read -e -p "Directory:" inputDir
+    inputDir=$(eval echo $inputDir)
+    if [ -d "$inputDir" ]; then
+        nativeDir="$inputDir"
+    else
+        echo "This directory does not exist. Create this directory? [y/n]"
+        read yesNo
+        yesNo="${yesNo,}"
+        if [[ yesNo == 'y' || yesNo == 'yes' ]]; then
+            mkdir $inputDir
+        else
+            echo "exiting"
+            exit
+        fi
+    fi
+    echo $nativeDir > "$HOME/.nativeApp/nativeDir.tmp"
+}
+
+if [[ ! -d $HOME/.nativeApp ]]; then
+    mkdir $HOME/.nativeApp
+    mkdir $HOME/.nativeApp/common
+fi
+if [[ -f "$HOME/.nativeApp/nativeDir.tmp" ]]; then
+    nativeDir=$(<$HOME/.nativeApp/nativeDir.tmp)
+else
+    changeDirectory
+fi
+echo $nativeDir > "$HOME/.nativeApp/nativeDir.tmp"
+cd $nativeDir
+if [[ $1 == 'create' ]]; then
+    create-react-native-app $2
+    mkdir ./$2/components
+    cp -r ./common ./$2/components
+elif [ -d "$1" ]; then
+    cd $1
+    yarn start
+elif [[ $1 == 'yarn' ]]; then
+    cd $2
+    yarn
+elif [[ $1 == 'reset' ]]; then
+    if [[ -d "$2" ]]; then
+    	cd $2
+    	npm install -g npm@latest
+    	rm -rf node_modules
+    	npm install
+    fi
+elif [[ $1 == 'common' ]]; then
+        if [[ $2 == 'set' ]]; then
+            cp -r $HOME/.nativeApp/common ./$3/components
+        elif [[ $2 == 'get' ]]; then
+            cp -r ./$3/components/common/. $HOME/.nativeApp/common
+        elif [[ $2 == 'reset' ]]; then
+            rm -R $HOME/.nativeApp/common
+            mkdir $HOME/.nativeApp/common
+        fi
+elif [[ $1 == 'list' ]]; then
+    ls
+elif [[ $1 == 'changeDir' ]]; then
+    changeDirectory
+elif [[ $1 == 'curDir' ]]; then
+    echo $nativeDir
+elif [[ $1 == 'navTo' ]]; then
+    cd $nativeDir/$2
+elif [[ $1 == 'help' ]]; then
+    echo "current nativeApp Directory: " $nativeDir
+    echo "create [app]: creates a React Native application [app] inside the nativeApp directory."
+    echo "yarn [app]: uses yarn on selected React Native [app]."
+    echo "[app]: runs [app]."
+    echo "list: lists applications in nativeApp directory."
+    echo "reset [app]: clears and reinstalls npm within [app]."
+    echo "common [parameter] [app]:"
+    echo "     parameter [set] places stored common files in [app]."
+    echo "     parameter [get] copies the [app] common files to the nativeApp memory."
+    echo "     parameter [reset] clears the stored nativeApp common files."
+    echo "list: lists apps within nativeApp directory."
+    echo "changeDir: changes nativeApp directory."
+else
+    echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'nativeApp create $1' to create this app."
+fi

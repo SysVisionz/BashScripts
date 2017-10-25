@@ -1,0 +1,82 @@
+#!/bin/bash
+function changeDirectory()
+{
+    echo "Please enter your React Application directory"
+    read -e -p "Directory:" inputDir
+    inputDir=$(eval echo $inputDir)
+    if [ -d "$inputDir" ]; then
+        reactDir="$inputDir"
+    else
+        echo "This directory does not exist. Create this directory? [y/n]"
+        read yesNo
+        yesNo="${yesNo,}"
+        if [[ yesNo == 'y' || yesNo == 'yes' ]]; then
+            mkdir $inputDir
+        else
+            echo "exiting"
+            exit
+        fi
+    fi
+    echo $reactDir > "$HOME/.reactApp/reactDir.tmp"
+}
+
+if [[ ! -d $HOME/.reactApp ]]; then
+    mkdir $HOME/.reactApp
+    mkdir $HOME/.reactApp/common
+fi
+if [[ -f "$HOME/.reactApp/reactDir.tmp" ]]; then
+    reactDir=$(<$HOME/.reactApp/reactDir.tmp)
+else
+    changeDirectory
+fi
+echo $reactDir > "$HOME/.reactApp/reactDir.tmp"
+cd $reactDir
+
+if [[ $1 == 'create' ]]; then
+    create-react-app $2
+    mkdir ./$2/components
+    cp -r ./common ./$2/components
+elif [[ $1 == 'yarn' ]]; then
+    cd $2
+    yarn
+elif [[ -d "$1" ]]; then
+    cd $1
+    yarn start
+elif [[ $1 == 'reset' ]]; then
+    if [[ -d "$2" ]]; then
+        cd $2
+        npm install -g npm@latest
+        rm -rf node_modules
+        npm install
+    fi
+elif [[ $1 == 'common' ]]; then
+    if [[ $2 == 'set' ]]; then
+        cp -r $HOME/.reactApp/common ./$3/components
+    elif [[ $2 == 'get' ]]; then
+        cp -r ./$3/components/common/. $HOME/.reactApp/common
+    elif [[ $2 == 'reset' ]]; then
+        rm -R $HOME/.reactApp/common
+        mkdir $HOME/.reactApp/common
+    fi
+elif [[ $1 == 'list' ]]; then
+    ls
+elif [[ $1 == 'changeDir' ]]; then
+    changeDirectory
+elif [[ $1 == 'navTo' ]]; then
+    cd $reactDir/$2
+elif [[ $1 == 'help' ]]; then
+    echo "current reactApp Directory: " $reactDir
+    echo "create [app]: creates a React application [app] inside the reactApp directory."
+    echo "yarn [app]: uses yarn on selected React [app]."
+    echo "[app]: runs [app]."
+    echo "list: lists applications in reactApp directory."
+    echo "reset [app]: clears and reinstalls npm within [app]."
+    echo "common [parameter] [app]:"
+    echo "     parameter [set] places stored common files in [app]."
+    echo "     parameter [get] copies the [app] common files to the reactApp memory."
+    echo "     parameter [reset] clears the stored reactApp common files."
+    echo "list: lists apps within reactApp directory."
+    echo "changeDir: changes reactApp directory."
+else
+    echo 'Unknown command or app does not exist. User "reactApp create" to create this app.'
+fi

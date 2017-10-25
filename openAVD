@@ -1,0 +1,74 @@
+#!/bin/bash
+
+function selectAVD()
+{
+		echo "Available AVDs:"
+		emulator -list-avds
+		echo "Which AVD would you like to use?"
+		read myAVD
+		ARRAY=($(emulator -list-avds))
+		isIn=false
+		for i in $ARRAY; do
+			if [[ $i == $myAVD ]]; then
+				isIn=true
+			fi
+		done
+		if [[ isIn ]]; then
+			echo $myAVD > "$HOME/.myAVD/myAVD.tmp"
+		else
+			echo "Not an available emulator."
+			exit
+		fi
+}
+
+function selectDir()
+{
+	echo "(Default is typically [your Android directory]/Sdk/emulator"
+	read -e -p "Directory: " emuDir
+	emuDir=$(eval echo $emuDir)
+	if [[ ! -f $emuDir/emulator ]]; then
+		echo "This is not a valid emulator directory."
+		exit
+	else
+		echo "Directory selected."
+		echo $emuDir > "$HOME/.myAVD/emuDir.tmp"
+	fi
+}
+
+if [[ ! -d $HOME/.myAVD ]]; then
+    mkdir $HOME/.myAVD
+fi
+if [[ -f "$HOME/.myAVD/emuDir.tmp" ]]; then
+	emuDir=$(<$HOME/.myAVD/emuDir.tmp)
+else
+	echo "No AVD Directory selected. Please input your AVD directory."
+	selectDir
+fi
+if [[ -f "$HOME/.myAVD/myAVD.tmp" ]]; then
+	myAVD=$(<$HOME/.myAVD/myAVD.tmp)
+else
+	if [[ $(eval echo $emuDir/emulator -list-avds) == ''  ]]; then
+		echo "No available AVDs. Please create one in your Android Studio."
+	else
+		echo "No current AVD selected."
+		selectAVD
+	fi
+fi
+if [[ $1 == 'list' ]]; then
+	$emuDir/emulator -list-avds
+	echo 'Current emulator:' $myAVD
+elif [[ $1 == 'setAVD' ]]; then
+	selectAVD
+elif [[ $1 == 'setDir' ]]; then
+	selectDir
+elif [[ $1 == '' ]]; then
+	emulator -avd $myAVD
+elif [[ $1 == 'help' ]]; then
+	echo "Available commands:"
+	echo "list: lists available AVDs and displays current default AVD"
+	echo "setAVD: sets new Default AVD"
+	echo "setDir: sets new emulator directory"
+	echo "inputting no command will open current default AVD."
+else
+	echo 'Unknown input'
+fi
