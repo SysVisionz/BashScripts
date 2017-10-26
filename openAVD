@@ -6,7 +6,7 @@ function selectAVD()
 		$emuDir/emulator -list-avds
 		echo "Which AVD would you like to use?"
 		read myAVD
-		ARRAY=($(emulator -list-avds))
+		ARRAY=($($emuDir/emulator -list-avds))
 		isIn=false
 		for i in $ARRAY; do
 			if [[ $i == $myAVD ]]; then
