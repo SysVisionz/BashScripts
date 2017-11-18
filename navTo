@@ -85,6 +85,13 @@ elif [[ $1 == "open" ]]; then
 			xdg-open ./
 		fi
 	fi
+elif [[ $1 == "help" ]]; then
+	echo "format goes navTo [command] [shortcut name] [subdirectory of shortcut]"
+	echo "list: shows the current shortcuts you've set up."
+	echo "open: opens the directory shortcut in question."
+	echo "create: creates new shortcut. May optionally be followed by the desired shortcut name, or this will be defined in the creation process."
+	echo "You may precede navTo with a . and simply type in the name of the shortcut to navigate to it within terminal."
+	echo "format: '. navTo [shortcut name]'"
 else
 	checkDir $1
 	if [[ $toNav != false ]]; then
@@ -93,6 +100,6 @@ else
 			cd $2
 		fi
 	else
-		echo "not a valid file or directory."
+		echo "not a valid file or directory. Use navTo help for more information."
 	fi
 fi
