@@ -29,37 +29,35 @@ if [[ -f "$HOME/.reactApp/reactDir.tmp" ]]; then
 else
     changeDirectory
 fi
-echo $reactDir > "$HOME/.reactApp/reactDir.tmp"
-cd $reactDir
 
 if [[ $1 == 'create' ]]; then
     create-react-app $2
-    mkdir $reactDir/$2/components
-    cp -r $HOME/.reactApp/common $reactDir/$2/components
+    mkdir $reactDir/$2/src/components
+    cp -r $HOME/.reactApp/common $reactDir/$2/src/components
 elif [[ $1 == 'yarn' ]]; then
-    cd $2
+    cd $reactDir/$2
     yarn
-elif [[ -d "$1" ]]; then
-    cd $1
+elif [[ -d "$reactDir/$1" ]]; then
+    cd $reactDir/$1
     yarn start
 elif [[ $1 == 'reset' ]]; then
-    if [[ -d "$2" ]]; then
-        cd $2
+    if [[ -d "$reactDir/$2" ]]; then
+        cd $reactDir/$2
         npm install -g npm@latest
         rm -rf node_modules
         npm install
     fi
 elif [[ $1 == 'common' ]]; then
     if [[ $2 == 'set' ]]; then
-        cp -r $HOME/.reactApp/common $reactDir/$3/components
+        cp -r $HOME/.reactApp/common $reactDir/$3/src/components
     elif [[ $2 == 'get' ]]; then
-        cp -r $reactDir/$3/components/common/. $HOME/.reactApp/common
+        cp -r $reactDir/$3/src/components/common/. $HOME/.reactApp/common
     elif [[ $2 == 'reset' ]]; then
         rm -R $HOME/.reactApp/common
         mkdir $HOME/.reactApp/common
     fi
 elif [[ $1 == 'list' ]]; then
-    ls
+    ls $reactDir
 elif [[ $1 == 'changeDir' ]]; then
     changeDirectory
 elif [[ $1 == 'navTo' ]]; then
