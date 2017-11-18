@@ -1,0 +1,98 @@
+#!/bin/bash
+
+if [[ ! -d "$HOME/.navTo" ]]; then
+	mkdir $HOME/.navTo
+	touch > $HOME/.navTo/directories.txt
+fi
+
+checkDir() {
+	file="$HOME/.navTo/directories.txt"
+	while IFS= read line
+	do
+		label=`echo $line | cut -d ";" -f 1`
+		directory=`echo $line | cut -d ";" -f 2`
+		if [[ $1 == $label ]]; then
+			toNav="$directory"
+			return
+		fi
+	done <"$file"
+	toNav=false
+	return
+}
+
+removeNav() {
+	file="$HOME/.navTo/directories.txt"
+	newFile=''
+	while IFS= read line
+	do
+		label=`echo $line | cut -d ";" -f 1`
+		directory=`echo $line | cut -d ";" -f 2`
+		if [[ $newFile == '' && $1 != $label ]]; then
+			newFile="$line"
+		elif [[ $1 != $label ]]; then
+			newFile+="\n$line"
+		else
+			echo "Removed $1"
+		fi
+	done <"$file"
+	echo -e $newFile > "$HOME/.navTo/directories.txt"
+	exit
+}
+
+if [[ $1 == "create" ]]; then
+	if [[ $2 == '' ]]; then
+		echo "What would you like the link name to be?"
+		read -p "Name: " varName
+		checkDir $varName
+		if [[ $toNav != false ]]; then
+			echo "This shortcut has already been set to $toNav."
+			exit
+		fi
+		echo "Input the directory or file name"
+	else
+		varName=$2
+		checkDir $varName
+		if [[ $toNav != false ]]; then
+			echo "This shortcut has already been set to $toNav."
+			exit
+		fi
+		echo "Input the directory or file name for $varName."
+	fi
+    read -e -p "Directory: " inputDir
+    if [[ -d $(eval echo $inputDir) ]]; then
+    	echo -e "$varName;$(eval echo $inputDir)" >> $HOME/.navTo/directories.txt
+    fi
+elif [[ $1 == "list" ]]; then
+	file="$HOME/.navTo/directories.txt"
+	while IFS= read line
+	do
+		label=`echo $line | cut -d ";" -f 1`
+		directory=`echo $line | cut -d ";" -f 2`
+		echo -e "$label : $directory"
+	done <"$file"
+elif [[ $1 == "remove" ]]; then
+	checkDir $2
+	if [[ $toNav != false ]]; then
+		removeNav $2
+	fi
+elif [[ $1 == "open" ]]; then
+	checkDir $2
+	if [[ $toNav != false ]]; then
+		cd "$toNav"
+		if [[ $3 ]]; then
+			xdg-open $3
+		else
+			xdg-open ./
+		fi
+	fi
+else
+	checkDir $1
+	if [[ $toNav != false ]]; then
+		cd "$toNav"
+		if [[ ! $2 == '' ]]; then
+			cd $2
+		fi
+	else
+		echo "not a valid file or directory."
+	fi
+fi
