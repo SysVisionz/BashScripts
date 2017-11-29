@@ -1,5 +1,165 @@
 #!/bin/bash
 
+appDir="$HOME/.nativeApp"
+
+
+# function checkCategory allows you to check categories.tmp to see if the specified category exists already.
+function checkCategory()
+{
+    file="$appDir/categories.tmp"
+    while IFS= read line; do
+        echo " 1 == $1"
+        echo " i == $line"
+        if [[ $1 == $line ]]; then
+            return 1
+        fi
+    done <"$file"
+    return 0
+}
+
+function addFile()
+{
+    echo $2
+    if [[ -f $1 ]]; then
+        copyFile=true
+        for i in $( ls $appDir/common); do
+            if [[ $i == `basename $1` ]]; then
+                echo "File $(`basename $1`) is already part of your common storage."
+                echo "Overwrite the file currently in your common storage?"
+                yesNo
+                if [[ $? != 1 ]]; then
+                    copyFile=false
+                fi
+            fi
+        done
+        if [[ $copyFile == true ]]; then
+            cp $1/$element $appDir/common
+        fi
+        if [[ $2 != '' ]]; then
+            echo `basename $1` >> $appDir/categories/$2.tmp
+        fi
+        cp $1 $appDir/common/
+    elif [[ -d $1 ]]; then
+        echo "Would you like to add files from this directory individually, rather than as a directory?"
+        yesNo
+        if [[ $? == 1 ]]; then
+            for element in $( ls $1); do
+                for i in $( ls $appDir/common); do
+                    if [[ $i == $element ]]; then
+                        echo "File $element is already part of your common storage."
+                        echo "Overwrite the file currently in your common storage?"
+                        yesNo
+                        if [[ $? != 1 ]]; then
+                            copyFile=false
+                        fi
+                    fi
+                done
+                if [[ $copyFile == true ]]; then
+                    cp $1/$element $appDir/common
+                fi
+                if [[ $2 != '' ]]; then
+                    echo $element >> $appDir/categories/$2.tmp
+                fi
+            done
+        else
+            for i in $( ls $appDir/common); do
+                if [[ $i == `basename $1` ]]; then
+                    echo "Directory $(`basename $1`) is already part of your common storage."
+                    echo "Overwrite the directory currently in your common storage?"
+                    yesNo
+                    if [[ $? != 1 ]]; then
+                        return
+                    fi
+                fi
+            done
+            cp $1 $appDir/common
+            if [[ $2 != '' ]]; then
+                echo $1 >> $appDir/categories/$2.tmp
+            fi
+        fi
+    else
+        echo "Not a valid file or directory."
+    fi
+}
+
+# function yesNo provides the user with an input where y or yes returns 1 or true.
+function yesNo()
+{
+    read yesNoVar
+    yesNoVar="${yesNoVar,}"
+    if [[ $yesNoVar == 'y' || $yesNoVar == 'yes' ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# checkInCategory searches within a category's data to see if the specified file or directory already exists within that category.
+function checkInCategory()
+{
+    file="$appDir/categories/$2.tmp"
+    while IFS= read line; do
+        if [[ $1 == $line ]]; then
+            return 1
+        fi
+    done <"$file"
+    return 0
+}
+
+# inArray searches an array to see if a particular variable exists within that array.
+function inArray()
+{
+    for i in $2; do
+        if [[ $i == $1 ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+# editCategory allows the user to add or remove elements to a category, or create a new category altogether.
+function editCategory()
+{
+    if [[ ! -f "$appDir/categories/$1.tmp" ]]; then
+        touch "$appDir/categories/$1.tmp"
+        echo $1 >> "$appDir/categories.tmp"
+    fi
+    file="$appDir/categories/$1.tmp"
+    while IFS= read line; do
+        items+=($line)
+    done <"$file"
+    element=""
+    while [[ $element != "quit" ]]; do
+        echo "Which file or directory do you wish to add to or remove from this category?"
+        echo "Current files and directories in common storage (files or directories already in this category are marked with a *)"
+        echo 'enter "quit" when finished'
+        for i in $( ls $appDir/common); do
+            checkInCategory $i $1
+            if [[ $? == 1 ]]; then
+                echo "*" $i
+            else
+                echo $i
+            fi
+        done
+        read -p "file or directory to add: " element
+        if [[ -f "$appDir/common/$element" || -d "$appDir/common/$element" ]]; then
+            checkInCategory $element $1
+            if [[ $? == 1 ]]; then
+                echo "This file or directory is already in this category. Remove from category?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    echo "removing"
+                    sed -i "/$element/d" $appDir/categories/$1.tmp
+                fi
+            else
+                echo $element >> $appDir/categories/$1.tmp
+            fi
+        else
+            echo "Not an existing file or directory."
+        fi
+    done
+}
+
+# changeDirectory allows the user to change their directory in which their applications are placed.
 function changeDirectory()
 {
     echo "Please enter your React Native Application directory"
@@ -9,74 +169,189 @@ function changeDirectory()
         nativeDir="$inputDir"
     else
         echo "This directory does not exist. Create this directory? [y/n]"
-        read yesNo
-        yesNo="${yesNo,}"
-        if [[ yesNo == 'y' || yesNo == 'yes' ]]; then
+        yesNo
+        if [[ $? == 1 ]]; then
             mkdir $inputDir
         else
             echo "exiting"
             exit
         fi
     fi
-    echo $nativeDir > "$HOME/.nativeApp/nativeDir.tmp"
+    echo $nativeDir > "$appDir/nativeDir.tmp"
 }
 
-if [[ ! -d $HOME/.nativeApp ]]; then
-    mkdir $HOME/.nativeApp
-    mkdir $HOME/.nativeApp/common
+# makes base directories for application data.
+if [[ ! -d $appDir ]]; then
+    mkdir $appDir
 fi
-if [[ -f "$HOME/.nativeApp/nativeDir.tmp" ]]; then
-    nativeDir=$(<$HOME/.nativeApp/nativeDir.tmp)
+if [[ ! -d $appDir/common ]]; then
+    mkdir $appDir/common
+fi
+if [[ ! -d $appDir/categories ]]; then
+    mkdir $appDir/categories
+fi
+# pulls directory for native applications from application data or allows user to set that directory.
+if [[ -f "$appDir/nativeDir.tmp" ]]; then
+    nativeDir=$(<$appDir/nativeDir.tmp)
 else
     changeDirectory
 fi
-echo $nativeDir > "$HOME/.nativeApp/nativeDir.tmp"
+if [[ -f "$appDir/categories.tmp" ]]; then
+    file="$appDir/categories.tmp"
+    while IFS= read line; do
+        categories+=($line)
+    done <"$file"
+fi
 
+# create command creates a new react native app with the given name.
 if [[ $1 == 'create' ]]; then
     create-react-native-app $2
     mkdir $nativeDir/$2/components
-    cp -r $HOME/.nativeApp/common $nativeDir/$2/components
-elif [ -d "$nativeDir/$1" ]; then
-    cd $nativeDir/$1
-    yarn start
-elif [[ $1 == 'yarn' ]]; then
-    cd $nativeDir/$2
-    yarn
+    cp -r $appDir/common $nativeDir/$2/components
+# reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
-    if [[ -d "$nativeDir/$2" ]]; then
+    if [[ $EUID -ne 0 ]]; then
+        echo Please run reset as root.
+    elif [[ -d "$nativeDir/$2" ]]; then
     	cd $nativeDir/$2
     	npm install -g npm@latest
     	rm -rf node_modules
     	npm install
-        chown $USER $nativeDir/$2 -R
+        chown $SUDO_USER:$SUDO_USER "$nativeDir/$2/node_modules" -R
     fi
+# common commands pull to or from a central common file directory in nativeApp folder.
 elif [[ $1 == 'common' ]]; then
-        if [[ $2 == 'set' ]]; then
-            cp -r $HOME/.nativeApp/common $nativeDir/$3/components
-        elif [[ $2 == 'get' ]]; then
-            cp -r $nativeDir/$3/components/common/ $HOME/.nativeApp/common
-        elif [[ $2 == 'reset' ]]; then
-            rm -R $HOME/.nativeApp/common
-            mkdir $HOME/.nativeApp/common
+    # common get command retrieves the common files within a particular category or all common files.
+    if [[ $2 == 'get' ]]; then
+        # if a category is specified with the get command, retrieve the files within the given category.
+        if [[ $4 != '' ]]; then
+            checkCategory $4
+            if [[ $? == 1 ]]; then
+                file="$appDir/categories/$4.tmp"    
+                while IFS= read line; do
+                    cp $appDir/common/$line $nativeDir/$3/components/common/
+                done <"$file"
+            fi
+        # if a category is not specified with the get command, verify if the user meant to specify the category, or wants to pull all existing common files.
+        else
+            echo "Would you like to add all common files in all categories to the target project? (Y/n)"
+            yesNo
+            if [[ $? == 1 ]]; then
+                cp $appDir/common/. $nativeDir/$3/components/common/
+            else
+                echo "What category would you like to pull from?"
+                cont=true
+                while [[ $cont ]]; do
+                    echo "Existing categories:"
+                    echo "${categories[*]}"
+                    read -p "Category: " category
+                    checkCategory $category
+                    if [[ $? != 1 ]]; then
+                        echo "Not a valid category."
+                    else
+                        file="$appDir/categories/$4.tmp"
+                        while IFS= read line; do
+                            cp $appDir/common/$line $nativeDir/$3/components/common/
+                        done
+                        cont=false
+                    fi
+                done
+            fi
         fi
+    # common edit allows you to edit the current common file categories.
+    elif [[ $2 == 'edit' ]]; then
+        # if the category isn't specified, ask user to specify category.
+        if [[ $3 == '' ]]; then
+            echo "What category would you like to edit?"
+            echo "Categories: ${categories[*]}"
+            read -p "Category: " category
+        else
+            category=$3
+        fi
+        # if the category doesn't exist, see if the user would like to create this category.
+        checkCategory $category
+        if [[ $? != 1 ]]; then
+            echo "Not an existing category."
+            echo "Create this category?"
+            yesNo
+            if [[ $? == 1 ]]; then
+                editCategory $category
+            fi
+        # if the category does exist, check if the user would like to delete it, then allow them to edit it.
+        else
+            echo "Would you like to delete this category?"
+            yesNo
+            if [[ $? == 1 ]]; then
+                sed "/$category/d" $appDir/categories.tmp
+                rm -r $appDir/categories/$category.tmp
+            fi
+            editCategory $category
+        fi
+    elif [[ $2 == 'set' ]]; then
+        echo "Add this directory or file to specific category? (Y/n)"
+        cont=true
+        yesNo
+        if [[ $? == 1 ]]; then
+            categoryUsed=true
+            while [[ $cont == true ]]; do
+                echo "Existing categories:"
+                echo "${categories[*]}"
+                read -p "Category: " category
+                checkCategory $category
+                if [[ $? != 1 ]]; then
+                    echo "Create $category category?"
+                    yesNo
+                    if [[ $? == 1 ]]; then
+                        echo $category >>  "$appDir/categories.tmp"
+                        isNew=true
+                        cont=false
+                    fi
+                else
+                    isNew=false
+                    cont=false
+                fi
+            done
+        else
+            categoryUsed=false
+        fi
+        echo $categoryUsed
+        cd $nativeDir
+        if [[ $categoryUsed == false ]]; then
+            echo "What file or directory would you like to add to common files?"
+            read -e -p "$nativeDir" fileOrDirectory
+            addFile $fileOrDirectory
+        else
+            echo "What file or directory would you like to add to common files under the $category category?"
+            read -e -p "$nativeDir" fileOrDirectory
+            addFile $fileOrDirectory $category
+        fi
+    elif [[ $2 == 'reset' ]]; then
+        rm -R $appDir/common
+        mkdir $appDir/common
+    fi
+# list will list the app directories in the main react native app directory.
 elif [[ $1 == 'list' ]]; then
     ls $nativeDir
 elif [[ $1 == 'changeDir' ]]; then
     changeDirectory
 elif [[ $1 == 'curDir' ]]; then
     echo $nativeDir
-elif [[ $1 == 'navTo' ]]; then
-    cd $nativeDir/$2
+elif [[ $1 == 'open' ]]; then
+    xdg-open $nativeDir/$2
+elif [ -d "$nativeDir/$1" ]; then
+    cd $nativeDir/$1
+    npm start
 elif [[ $1 == 'help' ]]; then
+    echo "[app]: runs [app]."
     echo "current nativeApp Directory: " $nativeDir
     echo "create [app]: creates a React Native application [app] inside the nativeApp directory."
-    echo "yarn [app]: uses yarn on selected React Native [app]."
-    echo "[app]: runs [app]."
+    echo "open [app]: opens the root directory of the specified application."
     echo "list: lists applications in nativeApp directory."
     echo "reset [app]: clears and reinstalls npm within [app]."
-    echo "common [parameter] [app]:"
-    echo "     parameter [set] places stored common files in [app]."
-    echo "     parameter [get] copies the [app] common files to the nativeApp memory."
+    echo "common [parameter]:"
+    echo "     parameter [set] saves a file or directory to your common files store, allowing you to add a category to it."
+    echo "     parameter [get] [app] [category] copies files in given category to the target app. If no category is given, you can enter a  "
+    echo "     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category."
     echo "     parameter [reset] clears the stored nativeApp common files."
     echo "list: lists apps within nativeApp directory."
     echo "changeDir: changes nativeApp directory."
