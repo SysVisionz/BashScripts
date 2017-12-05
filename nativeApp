@@ -8,8 +8,6 @@ function checkCategory()
 {
     file="$appDir/categories.tmp"
     while IFS= read line; do
-        echo " 1 == $1"
-        echo " i == $line"
         if [[ $1 == $line ]]; then
             return 1
         fi
@@ -17,65 +15,64 @@ function checkCategory()
     return 0
 }
 
-function addFile()
+function arrayToFile()
 {
-    echo $2
-    if [[ -f $1 ]]; then
+    echo -n> $1
+    for i in ${array[@]}; do
+        echo $i >> $1
+    done
+}
+
+# function copier takes $1 file or directory and copies it to storage, adding it to $2 category
+function copier()
+{
+    nameOf=`basename $1`
+    for i in $( ls $appDir/common); do
         copyFile=true
-        for i in $( ls $appDir/common); do
-            if [[ $i == `basename $1` ]]; then
-                echo "File $(`basename $1`) is already part of your common storage."
+        if [[ $i == $nameOf ]]; then
+            if [[ -d $1 ]]; then
+                echo "Directory $element is already part of your common storage."
+                echo "Overwrite the directory currently in your common storage?"
+            elif [[ -f $1 ]]; then
+                echo "File $element is already part of your common storage."
                 echo "Overwrite the file currently in your common storage?"
-                yesNo
-                if [[ $? != 1 ]]; then
-                    copyFile=false
-                fi
             fi
-        done
-        if [[ $copyFile == true ]]; then
-            cp $1/$element $appDir/common
+            yesNo
+            if [[ $? != 1 ]]; then
+                copyFile=false
+            fi
+            break
         fi
-        if [[ $2 != '' ]]; then
-            echo `basename $1` >> $appDir/categories/$2.tmp
+    done
+    # if the file has no conflicts or if the user has decided to overwrite the original, copy the file or directory.
+    if [[ $copyFile == true ]]; then
+        if [[ -f $1 ]]; then
+            cp $1 $appDir/common
+        elif [[ -d $1 ]]; then
+            cp -r $1/ $appDir/common
         fi
-        cp $1 $appDir/common/
+    fi
+    # if a category was declared, add this file or directory to that category.
+    if [[ $2 != '' ]]; then
+        echo $nameOf >> $appDir/categories/$2.tmp
+    fi
+}
+
+# addItem checks if the $1 target being added to the common file is a directory, then allows the user to decide if they want to add it as a directory or add all files within the directory individually.
+# it also adds the item to the $2 category, if one is chosen.
+function addItem()
+{
+    if [[ -f $1 ]]; then
+        copier $1 $2
     elif [[ -d $1 ]]; then
         echo "Would you like to add files from this directory individually, rather than as a directory?"
         yesNo
         if [[ $? == 1 ]]; then
             for element in $( ls $1); do
-                for i in $( ls $appDir/common); do
-                    if [[ $i == $element ]]; then
-                        echo "File $element is already part of your common storage."
-                        echo "Overwrite the file currently in your common storage?"
-                        yesNo
-                        if [[ $? != 1 ]]; then
-                            copyFile=false
-                        fi
-                    fi
-                done
-                if [[ $copyFile == true ]]; then
-                    cp $1/$element $appDir/common
-                fi
-                if [[ $2 != '' ]]; then
-                    echo $element >> $appDir/categories/$2.tmp
-                fi
+                copier $1/$element $2
             done
         else
-            for i in $( ls $appDir/common); do
-                if [[ $i == `basename $1` ]]; then
-                    echo "Directory $(`basename $1`) is already part of your common storage."
-                    echo "Overwrite the directory currently in your common storage?"
-                    yesNo
-                    if [[ $? != 1 ]]; then
-                        return
-                    fi
-                fi
-            done
-            cp $1 $appDir/common
-            if [[ $2 != '' ]]; then
-                echo $1 >> $appDir/categories/$2.tmp
-            fi
+            copier $1 $2
         fi
     else
         echo "Not a valid file or directory."
@@ -121,35 +118,62 @@ function editCategory()
 {
     if [[ ! -f "$appDir/categories/$1.tmp" ]]; then
         touch "$appDir/categories/$1.tmp"
-        echo $1 >> "$appDir/categories.tmp"
+    fi
+    file="$appDir/categories.tmp"
+    listedCategories=()
+    while IFS= read line; do
+        listedCategories+=($line)
+    done <"$file"
+    addToDoc=true
+    for i in ${listedCategories[@]}; do
+        if [[ $i == $1 ]]; then
+            addToDoc=false
+        fi
+    done
+    if [[ $addToDoc == true ]]; then
+        echo $1>>$appDir/categories.tmp
     fi
     file="$appDir/categories/$1.tmp"
     while IFS= read line; do
         items+=($line)
     done <"$file"
     element=""
-    while [[ $element != "quit" ]]; do
+    while true; do
         echo "Which file or directory do you wish to add to or remove from this category?"
         echo "Current files and directories in common storage (files or directories already in this category are marked with a *)"
         echo 'enter "quit" when finished'
+        array=()
         for i in $( ls $appDir/common); do
             checkInCategory $i $1
             if [[ $? == 1 ]]; then
                 echo "*" $i
+                array+=($i)
             else
                 echo $i
             fi
         done
-        read -p "file or directory to add: " element
+        read -p "file or directory to add or remove: " element
         if [[ -f "$appDir/common/$element" || -d "$appDir/common/$element" ]]; then
             checkInCategory $element $1
             if [[ $? == 1 ]]; then
                 echo "This file or directory is already in this category. Remove from category?"
                 yesNo
                 if [[ $? == 1 ]]; then
-                    echo "removing"
-                    sed -i "/$element/d" $appDir/categories/$1.tmp
+                    count=0
+                    for i in ${array[@]}; do
+                        if [[ $i == $element ]]; then
+                            echo "deleting $i"
+                            unset array[$count]
+                            array=( "${array[@]}" )
+                            break
+                        fi
+                        let count++
+                    done
+                    echo "${array[*]}"
+                    arrayToFile $appDir/categories/$1.tmp
                 fi
+            elif [[ $element == "quit" ]]; then
+                break
             else
                 echo $element >> $appDir/categories/$1.tmp
             fi
@@ -211,7 +235,7 @@ if [[ $1 == 'create' ]]; then
 # reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
     if [[ $EUID -ne 0 ]]; then
-        echo Please run reset as root.
+        echo "Please run reset as root."
     elif [[ -d "$nativeDir/$2" ]]; then
     	cd $nativeDir/$2
     	npm install -g npm@latest
@@ -282,18 +306,28 @@ elif [[ $1 == 'common' ]]; then
             echo "Would you like to delete this category?"
             yesNo
             if [[ $? == 1 ]]; then
-                sed "/$category/d" $appDir/categories.tmp
-                rm -r $appDir/categories/$category.tmp
+                array=( "${categories[@]}" )
+                count=0
+                for i in ${array[@]}; do
+                    if [[ $i == $category ]]; then
+                        echo "deleting $i"
+                        unset array[$count]
+                        break
+                    fi
+                    let count++
+                done
+                arrayToFile $appDir/categories.tmp
+            else
+                editCategory $category
             fi
-            editCategory $category
         fi
-    elif [[ $2 == 'set' ]]; then
+    elif [[ $2 == 'add' ]]; then
         echo "Add this directory or file to specific category? (Y/n)"
         cont=true
         yesNo
         if [[ $? == 1 ]]; then
             categoryUsed=true
-            while [[ $cont == true ]]; do
+            while true; do
                 echo "Existing categories:"
                 echo "${categories[*]}"
                 read -p "Category: " category
@@ -304,7 +338,7 @@ elif [[ $1 == 'common' ]]; then
                     if [[ $? == 1 ]]; then
                         echo $category >>  "$appDir/categories.tmp"
                         isNew=true
-                        cont=false
+                        break
                     fi
                 else
                     isNew=false
@@ -314,16 +348,15 @@ elif [[ $1 == 'common' ]]; then
         else
             categoryUsed=false
         fi
-        echo $categoryUsed
         cd $nativeDir
         if [[ $categoryUsed == false ]]; then
             echo "What file or directory would you like to add to common files?"
             read -e -p "$nativeDir" fileOrDirectory
-            addFile $fileOrDirectory
+            addItem $fileOrDirectory
         else
             echo "What file or directory would you like to add to common files under the $category category?"
             read -e -p "$nativeDir" fileOrDirectory
-            addFile $fileOrDirectory $category
+            addItem $fileOrDirectory $category
         fi
     elif [[ $2 == 'reset' ]]; then
         rm -R $appDir/common
@@ -349,8 +382,9 @@ elif [[ $1 == 'help' ]]; then
     echo "list: lists applications in nativeApp directory."
     echo "reset [app]: clears and reinstalls npm within [app]."
     echo "common [parameter]:"
-    echo "     parameter [set] saves a file or directory to your common files store, allowing you to add a category to it."
-    echo "     parameter [get] [app] [category] copies files in given category to the target app. If no category is given, you can enter a  "
+    echo "     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it."
+    echo "     parameter [get] [app] [category] copies files in given category to the target app."
+    echo "        If no category is given, you can enter one, or copy all existing common files. "
     echo "     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category."
     echo "     parameter [reset] clears the stored nativeApp common files."
     echo "list: lists apps within nativeApp directory."

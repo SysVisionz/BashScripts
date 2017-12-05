@@ -1,80 +1,393 @@
 #!/bin/bash
+
+appDir="$HOME/.reactApp"
+
+
+# function checkCategory allows you to check categories.tmp to see if the specified category exists already.
+function checkCategory()
+{
+    file="$appDir/categories.tmp"
+    while IFS= read line; do
+        if [[ $1 == $line ]]; then
+            return 1
+        fi
+    done <"$file"
+    return 0
+}
+
+function arrayToFile()
+{
+    echo -n> $1
+    for i in ${array[@]}; do
+        echo $i >> $1
+    done
+}
+
+# function copier takes $1 file or directory and copies it to storage, adding it to $2 category
+function copier()
+{
+    nameOf=`basename $1`
+    for i in $( ls $appDir/common); do
+        copyFile=true
+        if [[ $i == $nameOf ]]; then
+            if [[ -d $1 ]]; then
+                echo "Directory $element is already part of your common storage."
+                echo "Overwrite the directory currently in your common storage?"
+            elif [[ -f $1 ]]; then
+                echo "File $element is already part of your common storage."
+                echo "Overwrite the file currently in your common storage?"
+            fi
+            yesNo
+            if [[ $? != 1 ]]; then
+                copyFile=false
+            fi
+            break
+        fi
+    done
+    # if the file has no conflicts or if the user has decided to overwrite the original, copy the file or directory.
+    if [[ $copyFile == true ]]; then
+        if [[ -f $1 ]]; then
+            cp $1 $appDir/common
+        elif [[ -d $1 ]]; then
+            cp -r $1/ $appDir/common
+        fi
+    fi
+    # if a category was declared, add this file or directory to that category.
+    if [[ $2 != '' ]]; then
+        echo $nameOf >> $appDir/categories/$2.tmp
+    fi
+}
+
+# addItem checks if the $1 target being added to the common file is a directory, then allows the user to decide if they want to add it as a directory or add all files within the directory individually.
+# it also adds the item to the $2 category, if one is chosen.
+function addItem()
+{
+    if [[ -f $1 ]]; then
+        copier $1 $2
+    elif [[ -d $1 ]]; then
+        echo "Would you like to add files from this directory individually, rather than as a directory?"
+        yesNo
+        if [[ $? == 1 ]]; then
+            for element in $( ls $1); do
+                copier $1/$element $2
+            done
+        else
+            copier $1 $2
+        fi
+    else
+        echo "Not a valid file or directory."
+    fi
+}
+
+# function yesNo provides the user with an input where y or yes returns 1 or true.
+function yesNo()
+{
+    read yesNoVar
+    yesNoVar="${yesNoVar,}"
+    if [[ $yesNoVar == 'y' || $yesNoVar == 'yes' ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# checkInCategory searches within a category's data to see if the specified file or directory already exists within that category.
+function checkInCategory()
+{
+    file="$appDir/categories/$2.tmp"
+    while IFS= read line; do
+        if [[ $1 == $line ]]; then
+            return 1
+        fi
+    done <"$file"
+    return 0
+}
+
+# inArray searches an array to see if a particular variable exists within that array.
+function inArray()
+{
+    for i in $2; do
+        if [[ $i == $1 ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+# editCategory allows the user to add or remove elements to a category, or create a new category altogether.
+function editCategory()
+{
+    if [[ ! -f "$appDir/categories/$1.tmp" ]]; then
+        touch "$appDir/categories/$1.tmp"
+    fi
+    file="$appDir/categories.tmp"
+    listedCategories=()
+    while IFS= read line; do
+        listedCategories+=($line)
+    done <"$file"
+    addToDoc=true
+    for i in ${listedCategories[@]}; do
+        if [[ $i == $1 ]]; then
+            addToDoc=false
+        fi
+    done
+    if [[ $addToDoc == true ]]; then
+        echo $1>>$appDir/categories.tmp
+    fi
+    file="$appDir/categories/$1.tmp"
+    while IFS= read line; do
+        items+=($line)
+    done <"$file"
+    element=""
+    while true; do
+        echo "Which file or directory do you wish to add to or remove from this category?"
+        echo "Current files and directories in common storage (files or directories already in this category are marked with a *)"
+        echo 'enter "quit" when finished'
+        array=()
+        for i in $( ls $appDir/common); do
+            checkInCategory $i $1
+            if [[ $? == 1 ]]; then
+                echo "*" $i
+                array+=($i)
+            else
+                echo $i
+            fi
+        done
+        read -p "file or directory to add or remove: " element
+        if [[ -f "$appDir/common/$element" || -d "$appDir/common/$element" ]]; then
+            checkInCategory $element $1
+            if [[ $? == 1 ]]; then
+                echo "This file or directory is already in this category. Remove from category?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    count=0
+                    for i in ${array[@]}; do
+                        if [[ $i == $element ]]; then
+                            echo "deleting $i"
+                            unset array[$count]
+                            array=( "${array[@]}" )
+                            break
+                        fi
+                        let count++
+                    done
+                    echo "${array[*]}"
+                    arrayToFile $appDir/categories/$1.tmp
+                fi
+            elif [[ $element == "quit" ]]; then
+                break
+            else
+                echo $element >> $appDir/categories/$1.tmp
+            fi
+        else
+            echo "Not an existing file or directory."
+        fi
+    done
+}
+
+# changeDirectory allows the user to change their directory in which their applications are placed.
 function changeDirectory()
 {
-    echo "Please enter your React Application directory"
+    echo "Please enter your React Native Application directory"
     read -e -p "Directory:" inputDir
     inputDir=$(eval echo $inputDir)
     if [ -d "$inputDir" ]; then
         reactDir="$inputDir"
     else
         echo "This directory does not exist. Create this directory? [y/n]"
-        read yesNo
-        yesNo="${yesNo,}"
-        if [[ yesNo == 'y' || yesNo == 'yes' ]]; then
+        yesNo
+        if [[ $? == 1 ]]; then
             mkdir $inputDir
         else
             echo "exiting"
             exit
         fi
     fi
-    echo $reactDir > "$HOME/.reactApp/reactDir.tmp"
+    echo $reactDir > "$appDir/reactDir.tmp"
 }
 
-if [[ ! -d $HOME/.reactApp ]]; then
-    mkdir $HOME/.reactApp
-    mkdir $HOME/.reactApp/common
+# makes base directories for application data.
+if [[ ! -d $appDir ]]; then
+    mkdir $appDir
 fi
-if [[ -f "$HOME/.reactApp/reactDir.tmp" ]]; then
-    reactDir=$(<$HOME/.reactApp/reactDir.tmp)
+if [[ ! -d $appDir/common ]]; then
+    mkdir $appDir/common
+fi
+if [[ ! -d $appDir/categories ]]; then
+    mkdir $appDir/categories
+fi
+# pulls directory for react applications from application data or allows user to set that directory.
+if [[ -f "$appDir/reactDir.tmp" ]]; then
+    reactDir=$(<$appDir/reactDir.tmp)
 else
     changeDirectory
 fi
+if [[ -f "$appDir/categories.tmp" ]]; then
+    file="$appDir/categories.tmp"
+    while IFS= read line; do
+        categories+=($line)
+    done <"$file"
+fi
 
+# create command creates a new react react app with the given name.
 if [[ $1 == 'create' ]]; then
     create-react-app $2
-    mkdir $reactDir/$2/src/components
-    cp -r $HOME/.reactApp/common $reactDir/$2/src/components
-elif [[ $1 == 'yarn' ]]; then
-    cd $reactDir/$2
-    yarn
-elif [[ -d "$reactDir/$1" ]]; then
-    cd $reactDir/$1
-    yarn start
+    mkdir $reactDir/$2/components
+# reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
-    if [[ -d "$reactDir/$2" ]]; then
+    if [[ $EUID -ne 0 ]]; then
+        echo "Please run reset as root."
+    elif [[ -d "$reactDir/$2" ]]; then
         cd $reactDir/$2
         npm install -g npm@latest
         rm -rf node_modules
         npm install
+        chown $SUDO_USER:$SUDO_USER "$reactDir/$2/node_modules" -R
     fi
+# common commands pull to or from a central common file directory in reactApp folder.
 elif [[ $1 == 'common' ]]; then
-    if [[ $2 == 'set' ]]; then
-        cp -r $HOME/.reactApp/common $reactDir/$3/src/components
-    elif [[ $2 == 'get' ]]; then
-        cp -r $reactDir/$3/src/components/common/. $HOME/.reactApp/common
+    # common get command retrieves the common files within a particular category or all common files.
+    if [[ $2 == 'get' ]]; then
+        # if a category is specified with the get command, retrieve the files within the given category.
+        if [[ $4 != '' ]]; then
+            checkCategory $4
+            if [[ $? == 1 ]]; then
+                file="$appDir/categories/$4.tmp"    
+                while IFS= read line; do
+                    cp $appDir/common/$line $reactDir/$3/components/common/
+                done <"$file"
+            fi
+        # if a category is not specified with the get command, verify if the user meant to specify the category, or wants to pull all existing common files.
+        else
+            echo "Would you like to add all common files in all categories to the target project? (Y/n)"
+            yesNo
+            if [[ $? == 1 ]]; then
+                cp $appDir/common/. $reactDir/$3/components/common/
+            else
+                echo "What category would you like to pull from?"
+                cont=true
+                while [[ $cont ]]; do
+                    echo "Existing categories:"
+                    echo "${categories[*]}"
+                    read -p "Category: " category
+                    checkCategory $category
+                    if [[ $? != 1 ]]; then
+                        echo "Not a valid category."
+                    else
+                        file="$appDir/categories/$4.tmp"
+                        while IFS= read line; do
+                            cp $appDir/common/$line $reactDir/$3/components/common/
+                        done
+                        cont=false
+                    fi
+                done
+            fi
+        fi
+    # common edit allows you to edit the current common file categories.
+    elif [[ $2 == 'edit' ]]; then
+        # if the category isn't specified, ask user to specify category.
+        if [[ $3 == '' ]]; then
+            echo "What category would you like to edit?"
+            echo "Categories: ${categories[*]}"
+            read -p "Category: " category
+        else
+            category=$3
+        fi
+        # if the category doesn't exist, see if the user would like to create this category.
+        checkCategory $category
+        if [[ $? != 1 ]]; then
+            echo "Not an existing category."
+            echo "Create this category?"
+            yesNo
+            if [[ $? == 1 ]]; then
+                editCategory $category
+            fi
+        # if the category does exist, check if the user would like to delete it, then allow them to edit it.
+        else
+            echo "Would you like to delete this category?"
+            yesNo
+            if [[ $? == 1 ]]; then
+                array=( "${categories[@]}" )
+                count=0
+                for i in ${array[@]}; do
+                    if [[ $i == $category ]]; then
+                        echo "deleting $i"
+                        unset array[$count]
+                        break
+                    fi
+                    let count++
+                done
+                arrayToFile $appDir/categories.tmp
+            else
+                editCategory $category
+            fi
+        fi
+    elif [[ $2 == 'add' ]]; then
+        echo "Add this directory or file to specific category? (Y/n)"
+        cont=true
+        yesNo
+        if [[ $? == 1 ]]; then
+            categoryUsed=true
+            while true; do
+                echo "Existing categories:"
+                echo "${categories[*]}"
+                read -p "Category: " category
+                checkCategory $category
+                if [[ $? != 1 ]]; then
+                    echo "Create $category category?"
+                    yesNo
+                    if [[ $? == 1 ]]; then
+                        echo $category >>  "$appDir/categories.tmp"
+                        isNew=true
+                        break
+                    fi
+                else
+                    isNew=false
+                    cont=false
+                fi
+            done
+        else
+            categoryUsed=false
+        fi
+        cd $reactDir
+        if [[ $categoryUsed == false ]]; then
+            echo "What file or directory would you like to add to common files?"
+            read -e -p "$reactDir" fileOrDirectory
+            addItem $fileOrDirectory
+        else
+            echo "What file or directory would you like to add to common files under the $category category?"
+            read -e -p "$reactDir" fileOrDirectory
+            addItem $fileOrDirectory $category
+        fi
     elif [[ $2 == 'reset' ]]; then
-        rm -R $HOME/.reactApp/common
-        mkdir $HOME/.reactApp/common
+        rm -R $appDir/common
+        mkdir $appDir/common
     fi
+# list will list the app directories in the main react app directory.
 elif [[ $1 == 'list' ]]; then
     ls $reactDir
 elif [[ $1 == 'changeDir' ]]; then
     changeDirectory
-elif [[ $1 == 'navTo' ]]; then
-    cd $reactDir/$2
+elif [[ $1 == 'curDir' ]]; then
+    echo $reactDir
+elif [[ $1 == 'open' ]]; then
+    xdg-open $reactDir/$2
+elif [ -d "$reactDir/$1" ]; then
+    cd $reactDir/$1
+    npm start
 elif [[ $1 == 'help' ]]; then
     echo "current reactApp Directory: " $reactDir
-    echo "create [app]: creates a React application [app] inside the reactApp directory."
-    echo "yarn [app]: uses yarn on selected React [app]."
     echo "[app]: runs [app]."
+    echo "create [app]: creates a React Native application [app] inside the reactApp directory."
+    echo "open [app]: opens the root directory of the specified application."
     echo "list: lists applications in reactApp directory."
     echo "reset [app]: clears and reinstalls npm within [app]."
-    echo "common [parameter] [app]:"
-    echo "     parameter [set] places stored common files in [app]."
-    echo "     parameter [get] copies the [app] common files to the reactApp memory."
+    echo "common [parameter]:"
+    echo "     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it."
+    echo "     parameter [get] [app] [category] copies files in given category to the target app."
+    echo "        If no category is given, you can enter one, or copy all existing common files. "
+    echo "     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category."
     echo "     parameter [reset] clears the stored reactApp common files."
     echo "list: lists apps within reactApp directory."
     echo "changeDir: changes reactApp directory."
 else
-    echo 'Unknown command or app does not exist. User "reactApp create" to create this app.'
+    echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'reactApp create $1' to create this app."
 fi
