@@ -1,0 +1,22 @@
+if#!/bin/bash
+
+if [[ ! -d "$HOME/.current" ]]; then
+	mkdir $HOME/.current
+fi
+
+if [[ $1 == "assign" ]]; then 
+	echo $2 > $HOME/.current/target.txt
+	echo "set current to " $2
+elif [[ $1 == '' ]]; then
+	if [[ -f "$HOME/.myAVD/myAVD.tmp" ]]; then
+		if [[ navTo ]]; then 
+			. navTo open $(<$HOME/.current/target.txt)
+		else
+			echo "This command requires the \"navTo\" bash script to be executed from your terminal. The navTo command is either not installed or is unable to be executed from your terminal."
+		fi
+	else
+		echo "no current assignment"
+	fi
+else 
+	echo 'invalid command. The only viable command is "assign [navTo shortcut of your choice]"'
+fi

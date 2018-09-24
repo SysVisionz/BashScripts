@@ -20,6 +20,17 @@ checkDir() {
 	return
 }
 
+# function yesNo provides the user with an input where y or yes returns 1 or true.
+function yesNo()
+{
+    read yesNoVar
+    yesNoVar="${yesNoVar,}"
+    if [[ $yesNoVar == 'y' || $yesNoVar == 'yes' ]]; then
+        return 1
+    fi
+    return 0
+}
+
 removeNav() {
 	file="$HOME/.navTo/directories.txt"
 	newFile=''
@@ -36,7 +47,45 @@ removeNav() {
 		fi
 	done <"$file"
 	echo -e $newFile > "$HOME/.navTo/directories.txt"
-	exit
+}
+
+createCut() {
+	echo "Input the directory or file name for $1."
+	read -e -p "Directory: " inputDir
+	if [[ "${inputDir:0:1}" == "/" || "${inputDir:0:1}" == "~" ]]; then
+		if [[ -d $(eval echo $inputDir) ]]; then
+	    	echo -e "$varName;$(eval echo $inputDir)" >> $HOME/.navTo/directories.txt
+	    fi
+	elif [[ "${inputDir:0:3}" == "../" ]]; then
+		curDir="$PWD"
+		while [ "${inputDir:0:3}" == "../" ]
+		do
+			curDir="$(dirname "$curDir")"
+			inputDir="${inputDir:3}"
+		done
+		inputDir="$curDir/$inputDir"
+		if [[ -d $(eval echo $inputDir) ]]; then
+			echo -e "$varName;$(eval echo $inputDir)" >> $HOME/.navTo/directories.txt
+		fi
+	else
+		if [[ "${inputDir:0:2}" == "./" ]]; then
+			inputDir="${inputDir:2}"
+		fi
+		inputDir="$PWD/$inputDir"
+		if [[ -d $(eval echo $inputDir) ]]; then
+			echo -e "$varName;$(eval echo $inputDir)" >> $HOME/.navTo/directories.txt
+		fi
+	fi
+}
+
+editNav() {
+	echo "This shortcut has already been set to $1."
+	echo "Overwrite current shortcut?"
+	yesNo
+	if [[ $? == 1 ]]; then
+		removeNav $varName
+		createCut $varName
+	fi
 }
 
 if [[ $1 == "create" ]]; then
@@ -45,23 +94,18 @@ if [[ $1 == "create" ]]; then
 		read -p "Name: " varName
 		checkDir $varName
 		if [[ $toNav != false ]]; then
-			echo "This shortcut has already been set to $toNav."
+			editNav $varName
 			exit
 		fi
-		echo "Input the directory or file name"
 	else
 		varName=$2
 		checkDir $varName
 		if [[ $toNav != false ]]; then
-			echo "This shortcut has already been set to $toNav."
+			editNav $varName
 			exit
 		fi
-		echo "Input the directory or file name for $varName."
 	fi
-    read -e -p "Directory: " inputDir
-    if [[ -d $(eval echo $inputDir) ]]; then
-    	echo -e "$varName;$(eval echo $inputDir)" >> $HOME/.navTo/directories.txt
-    fi
+	createCut $varName
 elif [[ $1 == "list" ]]; then
 	file="$HOME/.navTo/directories.txt"
 	while IFS= read line
@@ -74,6 +118,7 @@ elif [[ $1 == "remove" ]]; then
 	checkDir $2
 	if [[ $toNav != false ]]; then
 		removeNav $2
+		exit
 	fi
 elif [[ $1 == "open" ]]; then
 	checkDir $2

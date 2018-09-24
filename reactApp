@@ -1,6 +1,8 @@
 #!/bin/bash
 
 appDir="$HOME/.reactApp"
+commonDir="$appDir/common"
+categoryDir="$appDir/categories"
 
 
 # function checkCategory allows you to check categories.tmp to see if the specified category exists already.
@@ -27,7 +29,7 @@ function arrayToFile()
 function copier()
 {
     nameOf=`basename $1`
-    for i in $( ls $appDir/common); do
+    for i in $( ls $commonDir); do
         copyFile=true
         if [[ $i == $nameOf ]]; then
             if [[ -d $1 ]]; then
@@ -47,14 +49,14 @@ function copier()
     # if the file has no conflicts or if the user has decided to overwrite the original, copy the file or directory.
     if [[ $copyFile == true ]]; then
         if [[ -f $1 ]]; then
-            cp $1 $appDir/common
+            cp $1 $commonDir
         elif [[ -d $1 ]]; then
-            cp -r $1/ $appDir/common
+            cp -r $1/ $commonDir
         fi
     fi
     # if a category was declared, add this file or directory to that category.
     if [[ $2 != '' ]]; then
-        echo $nameOf >> $appDir/categories/$2.tmp
+        echo $nameOf >> $categoryDir/$2.tmp
     fi
 }
 
@@ -93,7 +95,7 @@ function yesNo()
 # checkInCategory searches within a category's data to see if the specified file or directory already exists within that category.
 function checkInCategory()
 {
-    file="$appDir/categories/$2.tmp"
+    file="$categoryDir/$2.tmp"
     while IFS= read line; do
         if [[ $1 == $line ]]; then
             return 1
@@ -116,8 +118,8 @@ function inArray()
 # editCategory allows the user to add or remove elements to a category, or create a new category altogether.
 function editCategory()
 {
-    if [[ ! -f "$appDir/categories/$1.tmp" ]]; then
-        touch "$appDir/categories/$1.tmp"
+    if [[ ! -f "$categoryDir/$1.tmp" ]]; then
+        touch "$categoryDir/$1.tmp"
     fi
     file="$appDir/categories.tmp"
     listedCategories=()
@@ -133,7 +135,7 @@ function editCategory()
     if [[ $addToDoc == true ]]; then
         echo $1>>$appDir/categories.tmp
     fi
-    file="$appDir/categories/$1.tmp"
+    file="$categoryDir/$1.tmp"
     while IFS= read line; do
         items+=($line)
     done <"$file"
@@ -143,7 +145,7 @@ function editCategory()
         echo "Current files and directories in common storage (files or directories already in this category are marked with a *)"
         echo 'enter "quit" when finished'
         array=()
-        for i in $( ls $appDir/common); do
+        for i in $( ls $commonDir); do
             checkInCategory $i $1
             if [[ $? == 1 ]]; then
                 echo "*" $i
@@ -153,7 +155,7 @@ function editCategory()
             fi
         done
         read -p "file or directory to add or remove: " element
-        if [[ -f "$appDir/common/$element" || -d "$appDir/common/$element" ]]; then
+        if [[ -f "$commonDir/$element" || -d "$commonDir/$element" ]]; then
             checkInCategory $element $1
             if [[ $? == 1 ]]; then
                 echo "This file or directory is already in this category. Remove from category?"
@@ -170,12 +172,12 @@ function editCategory()
                         let count++
                     done
                     echo "${array[*]}"
-                    arrayToFile $appDir/categories/$1.tmp
+                    arrayToFile $categoryDir/$1.tmp
                 fi
             elif [[ $element == "quit" ]]; then
                 break
             else
-                echo $element >> $appDir/categories/$1.tmp
+                echo $element >> $categoryDir/$1.tmp
             fi
         else
             echo "Not an existing file or directory."
@@ -208,11 +210,11 @@ function changeDirectory()
 if [[ ! -d $appDir ]]; then
     mkdir $appDir
 fi
-if [[ ! -d $appDir/common ]]; then
-    mkdir $appDir/common
+if [[ ! -d $commonDir ]]; then
+    mkdir $commonDir
 fi
-if [[ ! -d $appDir/categories ]]; then
-    mkdir $appDir/categories
+if [[ ! -d $categoryDir ]]; then
+    mkdir $categoryDir
 fi
 # pulls directory for react applications from application data or allows user to set that directory.
 if [[ -f "$appDir/reactDir.tmp" ]]; then
@@ -229,8 +231,9 @@ fi
 
 # create command creates a new react react app with the given name.
 if [[ $1 == 'create' ]]; then
+    cd $reactDir
     create-react-app $2
-    mkdir $reactDir/$2/components
+    mkdir $reactDir/$2/src/components
 # reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
     if [[ $EUID -ne 0 ]]; then
@@ -250,9 +253,9 @@ elif [[ $1 == 'common' ]]; then
         if [[ $4 != '' ]]; then
             checkCategory $4
             if [[ $? == 1 ]]; then
-                file="$appDir/categories/$4.tmp"    
+                file="$categoryDir/$4.tmp"    
                 while IFS= read line; do
-                    cp $appDir/common/$line $reactDir/$3/components/common/
+                    cp $commonDir/$line $reactDir/$3/src/components/common/
                 done <"$file"
             fi
         # if a category is not specified with the get command, verify if the user meant to specify the category, or wants to pull all existing common files.
@@ -260,7 +263,7 @@ elif [[ $1 == 'common' ]]; then
             echo "Would you like to add all common files in all categories to the target project? (Y/n)"
             yesNo
             if [[ $? == 1 ]]; then
-                cp $appDir/common/. $reactDir/$3/components/common/
+                cp $commonDir/. $reactDir/$3/src/components/common/
             else
                 echo "What category would you like to pull from?"
                 cont=true
@@ -272,9 +275,9 @@ elif [[ $1 == 'common' ]]; then
                     if [[ $? != 1 ]]; then
                         echo "Not a valid category."
                     else
-                        file="$appDir/categories/$4.tmp"
+                        file="$categoryDir/$4.tmp"
                         while IFS= read line; do
-                            cp $appDir/common/$line $reactDir/$3/components/common/
+                            cp $commonDir/$line $reactDir/$3/src/components/common/
                         done
                         cont=false
                     fi
@@ -358,8 +361,8 @@ elif [[ $1 == 'common' ]]; then
             addItem $fileOrDirectory $category
         fi
     elif [[ $2 == 'reset' ]]; then
-        rm -R $appDir/common
-        mkdir $appDir/common
+        rm -R $commonDir
+        mkdir $commonDir
     fi
 # list will list the app directories in the main react app directory.
 elif [[ $1 == 'list' ]]; then

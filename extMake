@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # makes and sets base directories for application data.
-appDir="$HOME/.nativeApp"
-commonDir="$appDir/common"
-categoryDir="$appDir/categories"
-if [[ ! -d $appDir ]]; then
-    mkdir $appDir
+extDir="$HOME/.extMake"
+commonDir="$extDir/common"
+categoryDir="$extDir/categories"
+if [[ ! -d $extDir ]]; then
+    mkdir $extDir
 fi
 if [[ ! -d $commonDir ]]; then
     mkdir $commonDir
@@ -13,14 +13,14 @@ fi
 if [[ ! -d $categoryDir ]]; then
     mkdir $categoryDir
 fi
-# pulls directory for native applications from application data or allows user to set that directory.
-if [[ -f "$appDir/nativeDir.tmp" ]]; then
-    nativeDir=$(<$appDir/nativeDir.tmp)
+# pulls directory for extension applications from application data or allows user to set that directory.
+if [[ -f "$extDir/extensionDir.tmp" ]]; then
+    extensionDir=$(<$extDir/extensionDir.tmp)
 else
     changeDirectory
 fi
-if [[ -f "$appDir/categories.tmp" ]]; then
-    file="$appDir/categories.tmp"
+if [[ -f "$extDir/categories.tmp" ]]; then
+    file="$extDir/categories.tmp"
     while IFS= read line; do
         categories+=($line)
     done <"$file"
@@ -30,7 +30,7 @@ fi
 # function checkCategory allows you to check categories.tmp to see if the specified category exists already.
 function checkCategory()
 {
-    file="$appDir/categories.tmp"
+    file="$extDir/categories.tmp"
     while IFS= read line; do
         if [[ $1 == $line ]]; then
             return 1
@@ -143,7 +143,7 @@ function editCategory()
     if [[ ! -f "$categoryDir/$1.tmp" ]]; then
         touch "$categoryDir/$1.tmp"
     fi
-    file="$appDir/categories.tmp"
+    file="$extDir/categories.tmp"
     listedCategories=()
     while IFS= read line; do
         listedCategories+=($line)
@@ -155,7 +155,7 @@ function editCategory()
         fi
     done
     if [[ $addToDoc == true ]]; then
-        echo $1>>$appDir/categories.tmp
+        echo $1>>$extDir/categories.tmp
     fi
     file="$categoryDir/$1.tmp"
     while IFS= read line; do
@@ -210,11 +210,11 @@ function editCategory()
 # changeDirectory allows the user to change their directory in which their applications are placed.
 function changeDirectory()
 {
-    echo "Please enter your React Native Application directory"
+    echo "Please enter your Extension Application directory"
     read -e -p "Directory:" inputDir
     inputDir=$(eval echo $inputDir)
     if [ -d "$inputDir" ]; then
-        nativeDir="$inputDir"
+        extensionDir="$inputDir"
     else
         echo "This directory does not exist. Create this directory? [y/n]"
         yesNo
@@ -225,27 +225,85 @@ function changeDirectory()
             exit
         fi
     fi
-    echo $nativeDir > "$appDir/nativeDir.tmp"
+    echo $extensionDir > "$extDir/extensionDir.tmp"
 }
 
-# create command creates a new react native app with the given name.
+# create command creates a new react extension extensionwith the given name.
 if [[ $1 == 'create' ]]; then
-    cd $nativeDir
-    create-react-native-app $2
-    mkdir $2/components
-    cp -r $commonDir $nativeDir/$2/components
+    if [[ $2 == '' ]]; then
+    	ext = $2
+    else
+    	read -p "Extension File name:" ext
+    fi
+    cd $extensionDir
+    mkdir $ext
+    cd $ext
+    mkdir icon
+    mkdir popup
+    read -p "Extension Name:" name
+    read -p "Extension Description:" description
+    cat <<EOT >> manifest.json
+  {
+
+    "manifest_version": 2,
+    "name": "$name",
+    "version": "0.1",
+
+    "description": "$description",
+
+    "icons": {
+      "48": "icons/$ext-48.png",
+      "96": "icons/$ext-96.png"
+    },
+
+    "permissions":[
+      "activeTab",
+      "contextMenus"
+    ],
+
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "all_frames": true,
+        "js": ["$ext-content.js"]
+      }
+    ],
+
+    "background":
+    {
+      "scripts": ["$ext-background.js"]
+    },
+
+    "browser_action": {
+      "default_icon": "icons/$ext-48.png",
+      "default_title": "$name",
+      "default_popup": "popup/$ext.html"
+    }
+
+  }
+EOT
+	touch $ext-background.js
+	touch $ext-content.js
+	cd popup
+	touch $ext.html
+	touch $ext.css
+	touch $ext-popup.js
+	cd ../icons
+	touch $ext-48.png
+	touch $ext-96.png
+
 # reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
     if [[ $EUID -ne 0 ]]; then
         echo "Please run reset as root."
-    elif [[ -d "$nativeDir/$2" ]]; then
-    	cd $nativeDir/$2
+    elif [[ -d "$extensionDir/$2" ]]; then
+    	cd $extensionDir/$2
     	npm install -g npm@latest
     	rm -rf node_modules
     	npm install
-        chown $SUDO_USER:$SUDO_USER "$nativeDir/$2/node_modules" -R
+        chown $SUDO_USER:$SUDO_USER "$extensionDir/$2/node_modules" -R
     fi
-# common commands pull to or from a central common file directory in nativeApp folder.
+# common commands pull to or from a central common file directory in extMake folder.
 elif [[ $1 == 'common' ]]; then
     # common get command retrieves the common files within a particular category or all common files.
     if [[ $2 == 'get' ]]; then
@@ -254,14 +312,14 @@ elif [[ $1 == 'common' ]]; then
             checkCategory $4
             if [[ $? == 1 ]]; then
                 file="$categoryDir/$4.tmp"
-                if [[ ! -d $nativeDir/$3/components/common/ ]]; then
-                    mkdir $nativeDir/$3/components/common/
+                if [[ ! -d $extensionDir/$3/components/common/ ]]; then
+                    mkdir $extensionDir/$3/components/common/
                 fi
                 while IFS= read line; do
                     if [[ -d $commonDir/$line ]]; then
-                        cp -r $commonDir/$line/ $nativeDir/$3/components/common/
+                        cp -r $commonDir/$line/ $extensionDir/$3/components/common/
                     elif [[ -f $commonDir/$line ]]; then
-                        cp $commonDir/$line $nativeDir/$3/components/common/
+                        cp $commonDir/$line $extensionDir/$3/components/common/
                     fi
                 done <"$file"
             fi
@@ -270,10 +328,10 @@ elif [[ $1 == 'common' ]]; then
             echo "Would you like to add all common files in all categories to the target project? (Y/n)"
             yesNo
             if [[ $? == 1 ]]; then
-                if [[ ! -d $nativeDir/$3/components/common/ ]]; then
-                    mkdir $nativeDir/$3/components/common/
+                if [[ ! -d $extensionDir/$3/components/common/ ]]; then
+                    mkdir $extensionDir/$3/components/common/
                 fi
-                cp $commonDir/. $nativeDir/$3/components/common/
+                cp $commonDir/. $extensionDir/$3/components/common/
             else
                 echo "What category would you like to pull from?"
                 cont=true
@@ -285,12 +343,12 @@ elif [[ $1 == 'common' ]]; then
                     if [[ $? != 1 ]]; then
                         echo "Not a valid category."
                     else
-                        if [[ ! -d $nativeDir/$3/components/common/ ]]; then
-                            mkdir $nativeDir/$3/components/common/
+                        if [[ ! -d $extensionDir/$3/components/common/ ]]; then
+                            mkdir $extensionDir/$3/components/common/
                         fi
                         file="$categoryDir/$4.tmp"
                         while IFS= read line; do
-                            cp $commonDir/$line $nativeDir/$3/components/common/
+                            cp $commonDir/$line $extensionDir/$3/components/common/
                         done
                         cont=false
                     fi
@@ -331,7 +389,7 @@ elif [[ $1 == 'common' ]]; then
                     fi
                     let count++
                 done
-                arrayToFile $appDir/categories.tmp
+                arrayToFile $extDir/categories.tmp
             else
                 editCategory $category
             fi
@@ -351,7 +409,7 @@ elif [[ $1 == 'common' ]]; then
                     echo "Create $category category?"
                     yesNo
                     if [[ $? == 1 ]]; then
-                        echo $category >>  "$appDir/categories.tmp"
+                        echo $category >>  "$extDir/categories.tmp"
                         isNew=true
                         break
                     fi
@@ -363,47 +421,47 @@ elif [[ $1 == 'common' ]]; then
         else
             categoryUsed=false
         fi
-        cd $nativeDir
+        cd $extensionDir
         if [[ $categoryUsed == false ]]; then
             echo "What file or directory would you like to add to common files?"
-            read -e -p "$nativeDir" fileOrDirectory
+            read -e -p "$extensionDir" fileOrDirectory
             addItem $fileOrDirectory
         else
             echo "What file or directory would you like to add to common files under the $category category?"
-            read -e -p "$nativeDir" fileOrDirectory
+            read -e -p "$extensionDir" fileOrDirectory
             addItem $fileOrDirectory $category
         fi
     elif [[ $2 == 'reset' ]]; then
         rm -R $commonDir
         mkdir $commonDir
     fi
-# list will list the app directories in the main react native app directory.
+# list will list the extensiondirectories in the main react extension extensiondirectory.
 elif [[ $1 == 'list' ]]; then
-    ls $nativeDir
+    ls $extensionDir
 elif [[ $1 == 'changeDir' ]]; then
     changeDirectory
 elif [[ $1 == 'curDir' ]]; then
-    echo $nativeDir
+    echo $extensionDir
 elif [[ $1 == 'open' ]]; then
-    xdg-open $nativeDir/$2
-elif [ -d "$nativeDir/$1" ]; then
-    cd $nativeDir/$1
+    xdg-open $extensionDir/$2
+elif [ -d "$extensionDir/$1" ]; then
+    cd $extensionDir/$1
     npm start
 elif [[ $1 == 'help' ]]; then
-    echo "current nativeApp Directory: " $nativeDir
-    echo "[app]: runs [app]."
-    echo "create [app]: creates a React Native application [app] inside the nativeApp directory."
-    echo "open [app]: opens the root directory of the specified application."
-    echo "list: lists applications in nativeApp directory."
-    echo "reset [app]: clears and reinstalls npm within [app]."
+    echo "current extMake Directory: " $extensionDir
+    echo "[ext]: runs [ext]."
+    echo "create [ext]: creates a Extension application [ext] inside the extMake directory."
+    echo "open [ext]: opens the root directory of the specified application."
+    echo "list: lists applications in extMake directory."
+    echo "reset [ext]: clears and reinstalls npm within [ext]."
     echo "common [parameter]:"
     echo "     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it."
-    echo "     parameter [get] [app] [category] copies files in given category to the target app."
+    echo "     parameter [get] [ext] [category] copies files in given category to the target app."
     echo "        If no category is given, you can enter one, or copy all existing common files. "
     echo "     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category."
-    echo "     parameter [reset] clears the stored nativeApp common files."
-    echo "list: lists apps within nativeApp directory."
-    echo "changeDir: changes nativeApp directory."
+    echo "     parameter [reset] clears the stored extMake common files."
+    echo "list: lists apps within extMake directory."
+    echo "changeDir: changes extMake directory."
 else
-    echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'nativeApp create $1' to create this app."
+    echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'extMake create $1' to create this app."
 fi
