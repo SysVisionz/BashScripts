@@ -1,5 +1,0 @@
-#!/bin/bash
-
-    if [[ $1 == "sys" ]]; then
-    	ssh sysvisionz.com;
-    fi
