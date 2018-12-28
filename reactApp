@@ -234,16 +234,107 @@ if [[ $1 == 'create' ]]; then
     cd $reactDir
     create-react-app $2
     mkdir $reactDir/$2/src/components
+    cd $2
+    wp=false
+    basic=false
+    server=false
+    redux=true
+    socket=false
+    type=false
+    silent=false;
+    for i in "$@"; do  
+        case "$i" in
+            --wp ) wp=true;;
+            --basic ) basic=true;;
+            --server ) server=true;;
+            --no-redux ) redux=false;;
+            --socket ) socket=true;;
+            --silent ) silent=true;;
+        esac
+    done
+    if [[ $basic == false ]]; then
+        npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator && npm i --save-dev eslint
+        mkdir ./src/actions
+        touch ./src/actions/index.js
+        mkdir ./src/reducers
+        touch ./src/reducers/index.js
+    fi
+    if [[ $socket == true ]]; then
+        npm i --save socket.io-client
+    fi
+    if [[ $redux == true && basic == false ]]; then
+        npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
+    fi
+    if [[ $server == true ]]; then
+        npm i --save mongodb && npm i --save mongoose
+        if [[ $socket == true ]]; then
+            npm i --save socket.io
+        fi
+        if [[ silent != true ]]; then
+            paplay $HOME/Music/system-ready.ogg
+        fi
+    elif [[ $wp == true ]]; then
+        if [[ silent != true ]]; then
+            paplay $HOME/Music/system-ready.ogg
+        fi
+        cd public
+        rm favicon.ico
+        rm manifest.json
+        echo "<!DOCTYPE html>
+<html lang=\"en\">
+  <body>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div id=\"root\"></div>
+  </body>
+</html>" > index.html
+        cd ../
+        read -p "Plugin Name: " plugin
+        read -p "subdirectory, if any: " subdir
+        echo "plugin_name=\"$plugin\"
+plugin_subirectory=\"$subdir\"" > for-wp
+    else
+        if [[ silent != true ]]; then
+            paplay $HOME/Music/system-ready.ogg
+        fi
+    fi
 # reset will reset the node modules and reinstall them.
 elif [[ $1 == 'reset' ]]; then
-    if [[ $EUID -ne 0 ]]; then
-        echo "Please run reset as root."
-    elif [[ -d "$reactDir/$2" ]]; then
         cd $reactDir/$2
-        npm install -g npm@latest
         rm -rf node_modules
         npm install
-        chown $SUDO_USER:$SUDO_USER "$reactDir/$2/node_modules" -R
+elif [[ $1 == 'build' ]]; then
+    silent=false;
+    for i in "$@"; do  
+        case "$i" in
+            --silent ) silent=true;;
+        esac
+    done
+    cd $reactDir/$2
+    npm run build
+    if [[ silent != true ]]; then
+        paplay $HOME/Music/system-ready.ogg
+    fi
+    if [[ -f ./for-wp ]]; then 
+        file="$reactDir/$2/for-wp"
+        while IFS= read line; do
+            eval $line
+        done <"$file"
+        if [[ $plugin_subdirectory ]]; then
+            plugin_subdirectory="/$subdir";
+        fi
+        cd build
+        dirCode="<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
+        mv index.html index.html.php
+        echo "$dirCode
+        $(cat index.html.php)" > index.html.php
+        sed 's/\/static/<?php echo $directory ?>\/static/g' <index.html.php > temp
+        mv temp index.html.php
+    else
+        if [[ silent != true ]]; then
+            paplay $HOME/Music/system-ready.ogg
+        fi
     fi
 # common commands pull to or from a central common file directory in reactApp folder.
 elif [[ $1 == 'common' ]]; then
@@ -253,7 +344,7 @@ elif [[ $1 == 'common' ]]; then
         if [[ $4 != '' ]]; then
             checkCategory $4
             if [[ $? == 1 ]]; then
-                file="$categoryDir/$4.tmp"    
+                file="$categoryDir/$4.tmp"
                 while IFS= read line; do
                     cp $commonDir/$line $reactDir/$3/src/components/common/
                 done <"$file"
@@ -377,20 +468,29 @@ elif [ -d "$reactDir/$1" ]; then
     cd $reactDir/$1
     npm start
 elif [[ $1 == 'help' ]]; then
-    echo "current reactApp Directory: " $reactDir
-    echo "[app]: runs [app]."
-    echo "create [app]: creates a React Native application [app] inside the reactApp directory."
-    echo "open [app]: opens the root directory of the specified application."
-    echo "list: lists applications in reactApp directory."
-    echo "reset [app]: clears and reinstalls npm within [app]."
-    echo "common [parameter]:"
-    echo "     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it."
-    echo "     parameter [get] [app] [category] copies files in given category to the target app."
-    echo "        If no category is given, you can enter one, or copy all existing common files. "
-    echo "     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category."
-    echo "     parameter [reset] clears the stored reactApp common files."
-    echo "list: lists apps within reactApp directory."
-    echo "changeDir: changes reactApp directory."
+    echo "current reactApp Directory: $reactDir
+[app]: runs [app].
+create [app]: creates a React Native application [app] inside the reactApp directory. Plays indicator noise at completion of task.
+    NOTE: create automatically installs react-transition-group, react-router-dom, prop-types, validator, eslint, redux, react-redux, and redux-thunk.
+    --basic prevents all automatic repository installation
+    --wp creates the application and sets it to build for insertion into wordpress plugins.
+    --socket includes socket.io-client for websocketing
+    --server includes mongodb and mongoose, includes socket.io if --socket was used.
+    --no-redux prevents automatic installation of redux, react-redux, and redux-thunk. Redundant if --basic is used.
+    --silent prevents indicator sound playing at completion
+open [app]: opens the root directory of the specified application.
+build [app]: builds the application. If this was created with the --wp setting, it builds for insertion into a wordpress plugin. Plays indicator noise at completion of task.
+    --silent prevents indicator sound playing at completion
+list: lists applications in reactApp directory.
+reset [app]: clears and reinstalls node repositories within [app].
+common [parameter]:
+     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it.
+     parameter [get] [app] [category] copies files in given category to the target app.
+        If no category is given, you can enter one, or copy all existing common files. 
+     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category.
+     parameter [reset] clears the stored reactApp common files.
+     list: lists apps within reactApp directory.
+changeDir: changes reactApp directory."
 else
     echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'reactApp create $1' to create this app."
 fi
