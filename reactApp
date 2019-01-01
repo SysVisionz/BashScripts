@@ -265,6 +265,23 @@ if [[ $1 == 'create' ]]; then
     fi
     if [[ $redux == true && $basic == false ]]; then
         cd src
+        echo "import React from 'react';
+import ReactDOM from 'react-dom';
+import {Provider} from 'react-redux';
+import ReduxThunk from 'redux-thunk';
+import {createStore, applyMiddleware} from 'redux';
+import combineReducers from './reducers';
+import App from './App';
+import * as serviceWorker from './serviceWorker';
+
+ReactDOM.render((<Provider store={createStore(combineReducers, {}, applyMiddleware(ReduxThunk)) }>
+                <App />
+        </Provider>), document.getElementById('svz-zb-banner-settings'));
+
+// If you want your app to work offline and load faster, you can change
+// unregister() to register() below. Note this comes with some pitfalls.
+// Learn more about service workers: http://bit.ly/CRA-PWA
+serviceWorker.unregister();" > index.js;
         mkdir reducers
         mkdir actions
         cd reducers
@@ -462,7 +479,7 @@ elif [[ $1 == 'build' ]]; then
             --silent ) silent=true;;
         esac
     done
-    cd $reactDir/$2
+    cd $reactDir$2
     npm run build
     if [[ $silent != true ]]; then
         paplay $HOME/Music/system-ready.ogg
