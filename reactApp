@@ -241,7 +241,8 @@ if [[ $1 == 'create' ]]; then
     redux=true
     socket=false
     type=false
-    silent=false;
+    silent=false
+    ajax=false
     for i in "$@"; do  
         case "$i" in
             --wp ) wp=true;;
@@ -250,34 +251,186 @@ if [[ $1 == 'create' ]]; then
             --no-redux ) redux=false;;
             --socket ) socket=true;;
             --silent ) silent=true;;
+            --ajax ) ajax=true;;
         esac
     done
     if [[ $basic == false ]]; then
         npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator && npm i --save-dev eslint
         mkdir ./src/actions
-        touch ./src/actions/index.js
         mkdir ./src/reducers
-        touch ./src/reducers/index.js
+    fi
+    if [[ $ajax == true ]]; then
+        npm i --save request-promise
     fi
     if [[ $socket == true ]]; then
         npm i --save socket.io-client
     fi
-    if [[ $redux == true && basic == false ]]; then
-        npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
-    fi
-    if [[ $server == true ]]; then
-        npm i --save mongodb && npm i --save mongoose
+    if [[ $redux == true && $basic == false ]]; then
+        echo "redux and not basic"
+        cd src
+        mkdir reducers
+        mkdir actions
+        cd reducers
+        echo "import { combineReducers } from 'redux';
+import reduxReducer from './reduxReducer';
+
+
+export default combineReducers({
+    reducer: reduxReducer
+});" > index.js
+        echo "const INITIAL_STATE = {
+
+}
+
+export default (state=INITIAL_STATE, action) => {
+    const {type, payload} = action;
+    switch (type) {
+        case 'update':
+            return {...state, ...payload};
+        default:
+            return {...state};
+    }
+}" > reduxReducer.js
+        cd ../actions
+        if [[ $wp == true ]] && [[ $ajax == true || $socket == true ]]; then
+            echo "wp ajax"
+            $special="
+const postURI = config => {
+    const {nonce, ajax_url} = window.ajaxValues;
+    return ajax_url + \"?action=YOUR_WP_ACTION&nonce=\" + nonce;
+}
+const getURI = config => {
+    const {nonce, ajax_url} = window.ajaxValues;
+    let retval = ajax_url + \"?action=YOUR_WP_ACTION\";
+    config = {nonce, ...config}
+    for (const i in config) {
+        retval+= \"&\" + i + \"=\" + config[i];
+    }
+    return retval;
+}
+"
+            $url="url: getURI({
+                type: 'get_settings'
+            }),"
+        else
+            $special=""
+            $url="window.location.origin,"
+        fi
         if [[ $socket == true ]]; then
-            npm i --save socket.io
+            echo "import request from 'request-promise'
+import socketIOClient from 'socket.io-client';
+$special
+export const update = data => {
+    return {
+        type: 'update', 
+        payload: data
+    }
+}
+
+export const requestTemplate = () => {
+    return dispatch => {
+        request({
+            method: ,
+            url: $url,
+            json: ,
+            headers: {
+            },
+            body: {
+            }
+        }).then(res => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        }).catch(err => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        });
+    }
+}
+
+export const socketTemplate = ( socket) => {
+    return dispatch => {
+        request({
+            method: '',
+            uri: $url,
+            json: ,
+            headers: {
+            },
+            resolveWithFullResponse: 
+        })
+        .then( res => {
+            socket.emit('', {})
+            dispatch({type: '', payload: )
+        })
+        .catch( err => dispatch( {type: '', payload: } ) )
+
+    }
+}" > templateActions.js
+            echo "export * from './socketRequestTemplateActions';" > index.js
+        elif [[ $ajax == true ]]; then
+            echo "import request from 'request-promise'
+$special
+export const update = data => {
+    return {
+        type: 'update',
+        payload: data
+    }
+}
+
+export const requestTemplate = () => {
+    return dispatch => {
+        request({
+            method: ,
+            url: $url,
+            json: ,
+            headers: {
+            },
+            body: {
+            }
+        }).then(res => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        }).catch(err => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        });
+    }
+}" > templateActions.js
+            echo "export * from './requestTemplateActions';" > index.js
+        else
+            echo "export const update = data => {
+    return {
+        type: 'update',
+        payload: data
+    }
+}" > templateActions.js
+            echo "export * from './templateActions';" > index.js
         fi
-        if [[ silent != true ]]; then
+        cd ../
+        npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
+        if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
-    elif [[ $wp == true ]]; then
-        if [[ silent != true ]]; then
-            paplay $HOME/Music/system-ready.ogg
+        read -p "Plugin Name: " plugin
+        read -p "subdirectory, if any: " subdir
+        if [[ $ajax == true || $socket == true ]]; then
+            echo "has_requests=true" > for-wp
+        else
+            echo "has_requests=false" > for-wp
         fi
-        cd public
+        echo "plugin_name=\"$plugin\"
+plugin_subdirectory=\"$subdir\"
+" >> for-wp
+    fi
+    if [[ $wp == true ]]; then
+        cd ../public
         rm favicon.ico
         rm manifest.json
         echo "<!DOCTYPE html>
@@ -289,13 +442,16 @@ if [[ $1 == 'create' ]]; then
     <div id=\"root\"></div>
   </body>
 </html>" > index.html
-        cd ../
-        read -p "Plugin Name: " plugin
-        read -p "subdirectory, if any: " subdir
-        echo "plugin_name=\"$plugin\"
-plugin_subirectory=\"$subdir\"" > for-wp
+    elif [[ $server == true ]]; then
+        npm i --save mongodb && npm i --save mongoose
+        if [[ $socket == true ]]; then
+            npm i --save socket.io
+        fi
+        if [[ $silent != true ]]; then
+            paplay $HOME/Music/system-ready.ogg
+        fi
     else
-        if [[ silent != true ]]; then
+        if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
     fi
@@ -313,7 +469,7 @@ elif [[ $1 == 'build' ]]; then
     done
     cd $reactDir/$2
     npm run build
-    if [[ silent != true ]]; then
+    if [[ $silent != true ]]; then
         paplay $HOME/Music/system-ready.ogg
     fi
     if [[ -f ./for-wp ]]; then 
@@ -321,18 +477,27 @@ elif [[ $1 == 'build' ]]; then
         while IFS= read line; do
             eval $line
         done <"$file"
-        if [[ $plugin_subdirectory ]]; then
-            plugin_subdirectory="/$subdir";
+        if [[ $plugin_subdirectory != '' ]]; then
+            plugin_subdirectory="/$plugin_subdirectory";
+        fi
+        if [[ $has_requests ]]; then
+            dirCode="<script>window.ajaxValues = {
+    ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
+    nonce: '<?php echo wp_create_nonce( "svz_bm" ) ?>'
+}</script>
+"
+        else
+            dirCode=""
         fi
         cd build
-        dirCode="<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
+        dirCode="$dirCode<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
         mv index.html index.html.php
         echo "$dirCode
         $(cat index.html.php)" > index.html.php
         sed 's/\/static/<?php echo $directory ?>\/static/g' <index.html.php > temp
         mv temp index.html.php
     else
-        if [[ silent != true ]]; then
+        if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
     fi
@@ -470,24 +635,48 @@ elif [ -d "$reactDir/$1" ]; then
 elif [[ $1 == 'help' ]]; then
     echo "current reactApp Directory: $reactDir
 [app]: runs [app].
-create [app]: creates a React Native application [app] inside the reactApp directory. Plays indicator noise at completion of task.
-    NOTE: create automatically installs react-transition-group, react-router-dom, prop-types, validator, eslint, redux, react-redux, and redux-thunk.
-    --basic prevents all automatic repository installation
-    --wp creates the application and sets it to build for insertion into wordpress plugins.
-    --socket includes socket.io-client for websocketing
-    --server includes mongodb and mongoose, includes socket.io if --socket was used.
-    --no-redux prevents automatic installation of redux, react-redux, and redux-thunk. Redundant if --basic is used.
-    --silent prevents indicator sound playing at completion
+create [app]: creates a React Native application [app] 
+    inside the reactApp directory. Plays indicator noise 
+    at completion of task.
+        NOTE: create automatically installs 
+            react-transition-group, react-router-dom, 
+            prop-types, validator, eslint, redux, 
+            react-redux, and redux-thunk. Additionally, 
+            typical redux actions and reducers templates 
+            will also be set up.
+        --basic prevents all automatic repository 
+            installation
+        --wp creates the application and 
+            sets it to build for insertion into 
+            wordpress plugins.
+        --socket includes socket.io-client for 
+            websocketing, and modifies the actions file 
+            accordingly.
+        --ajax includes request-promise for ajax 
+            requests, and modifies the actions file 
+            accordingly. Redundant if --socket is used.
+        --server includes mongodb and mongoose, includes 
+            socket.io if --socket was used.
+        --no-redux prevents automatic installation of 
+            redux, react-redux, and redux-thunk. 
+            Redundant if --basic is used.
+        --silent prevents indicator sound playing at completion
 open [app]: opens the root directory of the specified application.
-build [app]: builds the application. If this was created with the --wp setting, it builds for insertion into a wordpress plugin. Plays indicator noise at completion of task.
-    --silent prevents indicator sound playing at completion
+build [app]: builds the application. If this was created 
+    with the --wp setting, it builds for insertion into a wordpress 
+    plugin. Plays indicator noise at completion of task.
+        --silent prevents indicator sound playing at completion
 list: lists applications in reactApp directory.
 reset [app]: clears and reinstalls node repositories within [app].
 common [parameter]:
-     parameter [add] saves a file or directory to your common files store, allowing you to add a category to it.
-     parameter [get] [app] [category] copies files in given category to the target app.
-        If no category is given, you can enter one, or copy all existing common files. 
-     parameter [edit] allows you to edit a category by adding or removing files currently in your common storage to a category.
+     parameter [add] saves a file or directory to your common 
+        files store, allowing you to add a category to it.
+     parameter [get] [app] [category] copies files in given 
+        category to the target app. If no category is given, 
+        you can enter one, or copy all existing common files. 
+     parameter [edit] allows you to edit a category by adding 
+        or removing files currently in your common storage to a 
+        category.
      parameter [reset] clears the stored reactApp common files.
      list: lists apps within reactApp directory.
 changeDir: changes reactApp directory."
