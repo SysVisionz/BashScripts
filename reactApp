@@ -276,7 +276,7 @@ import * as serviceWorker from './serviceWorker';
 
 ReactDOM.render((<Provider store={createStore(combineReducers, {}, applyMiddleware(ReduxThunk)) }>
                 <App />
-        </Provider>), document.getElementById('svz-zb-banner-settings'));
+        </Provider>), document.getElementById('root'));
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
