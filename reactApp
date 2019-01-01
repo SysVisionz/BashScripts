@@ -256,17 +256,14 @@ if [[ $1 == 'create' ]]; then
     done
     if [[ $basic == false ]]; then
         npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator && npm i --save-dev eslint
-        mkdir ./src/actions
-        mkdir ./src/reducers
     fi
     if [[ $ajax == true ]]; then
         npm i --save request-promise
     fi
     if [[ $socket == true ]]; then
-        npm i --save socket.io-client
+         npm i --save socket.io-client
     fi
     if [[ $redux == true && $basic == false ]]; then
-        echo "redux and not basic"
         cd src
         mkdir reducers
         mkdir actions
@@ -293,8 +290,7 @@ export default (state=INITIAL_STATE, action) => {
 }" > reduxReducer.js
         cd ../actions
         if [[ $wp == true ]] && [[ $ajax == true || $socket == true ]]; then
-            echo "wp ajax"
-            $special="
+            special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
     return ajax_url + \"?action=YOUR_WP_ACTION&nonce=\" + nonce;
@@ -309,12 +305,12 @@ const getURI = config => {
     return retval;
 }
 "
-            $url="url: getURI({
+            url="url: getURI({
                 type: 'get_settings'
             }),"
         else
-            $special=""
-            $url="window.location.origin,"
+            special=""
+            url="window.location.origin,"
         fi
         if [[ $socket == true ]]; then
             echo "import request from 'request-promise'
@@ -413,7 +409,7 @@ export const requestTemplate = () => {
 }" > templateActions.js
             echo "export * from './templateActions';" > index.js
         fi
-        cd ../
+        cd ../../
         npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
         if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
@@ -426,11 +422,10 @@ export const requestTemplate = () => {
             echo "has_requests=false" > for-wp
         fi
         echo "plugin_name=\"$plugin\"
-plugin_subdirectory=\"$subdir\"
-" >> for-wp
+plugin_subdirectory=\"$subdir\"" >> for-wp
     fi
     if [[ $wp == true ]]; then
-        cd ../public
+        cd ./public
         rm favicon.ico
         rm manifest.json
         echo "<!DOCTYPE html>
