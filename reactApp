@@ -456,6 +456,18 @@ nonce_prefix=\"$nonce_prefix\"" >> for-wp
     <div id=\"root\"></div>
   </body>
 </html>" > index.html
+    echo "Successfully set up for wordpress build!
+    NOTE: This will not automatically convert media 
+    file locations (pictures/videos/etc) at build.
+    It is recommended that you use wordpress storage
+    mechanics to access those, rendering through
+    AJAX calls for any required locations. They will
+    not render correctly simply from a normal build,
+    so the use of these files will require some level
+    of wordpress expertise.
+    This is scheduled to be remedied in future updates,
+    but as of this time, the feature is not available.
+    Thank you for using reactApp!"
     elif [[ $server == true ]]; then
         npm i --save mongodb && npm i --save mongoose
         if [[ $socket == true ]]; then
