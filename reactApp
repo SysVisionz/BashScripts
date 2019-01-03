@@ -433,13 +433,15 @@ export const requestTemplate = () => {
         fi
         read -p "Plugin Name: " plugin
         read -p "subdirectory, if any: " subdir
+        read -p "Nonce value prefix: " nonce_prefix
         if [[ $ajax == true || $socket == true ]]; then
             echo "has_requests=true" > for-wp
         else
             echo "has_requests=false" > for-wp
         fi
         echo "plugin_name=\"$plugin\"
-plugin_subdirectory=\"$subdir\"" >> for-wp
+plugin_subdirectory=\"$subdir\"
+nonce_prefix=\"$nonce_prefix\"" >> for-wp
     fi
     if [[ $wp == true ]]; then
         cd ./public
@@ -495,7 +497,7 @@ elif [[ $1 == 'build' ]]; then
         if [[ $has_requests ]]; then
             dirCode="<script>window.ajaxValues = {
     ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
-    nonce: '<?php echo wp_create_nonce( "svz_bm" ) ?>'
+    nonce: '<?php echo wp_create_nonce( "$nonce_prefix" ) ?>'
 }</script>
 "
         else
