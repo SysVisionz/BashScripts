@@ -456,18 +456,6 @@ nonce_prefix=\"$nonce_prefix\"" >> for-wp
     <div id=\"root\"></div>
   </body>
 </html>" > index.html
-    echo "Successfully set up for wordpress build!
-    NOTE: This will not automatically convert media 
-    file locations (pictures/videos/etc) at build.
-    It is recommended that you use wordpress storage
-    mechanics to access those, rendering through
-    AJAX calls for any required locations. They will
-    not render correctly simply from a normal build,
-    so the use of these files will require some level
-    of wordpress expertise.
-    This is scheduled to be remedied in future updates,
-    but as of this time, the feature is not available.
-    Thank you for using reactApp!"
     elif [[ $server == true ]]; then
         npm i --save mongodb && npm i --save mongoose
         if [[ $socket == true ]]; then
@@ -488,44 +476,49 @@ elif [[ $1 == 'reset' ]]; then
         npm install
 elif [[ $1 == 'build' ]]; then
     silent=false;
-    for i in "$@"; do  
-        case "$i" in
-            --silent ) silent=true;;
-        esac
-    done
-    cd $reactDir$2
-    npm run build
-    if [[ $silent != true ]]; then
-        paplay $HOME/Music/system-ready.ogg
-    fi
-    if [[ -f ./for-wp ]]; then 
-        file="$reactDir/$2/for-wp"
-        while IFS= read line; do
-            eval $line
-        done <"$file"
-        if [[ $plugin_subdirectory != '' ]]; then
-            plugin_subdirectory="/$plugin_subdirectory";
-        fi
-        if [[ $has_requests ]]; then
-            dirCode="<script>window.ajaxValues = {
-    ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
-    nonce: '<?php echo wp_create_nonce( "$nonce_prefix" ) ?>'
-}</script>
-"
-        else
-            dirCode=""
-        fi
-        cd build
-        dirCode="$dirCode<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
-        mv index.html index.html.php
-        echo "$dirCode
-        $(cat index.html.php)" > index.html.php
-        sed 's/\/static/<?php echo $directory ?>\/static/g' <index.html.php > temp
-        mv temp index.html.php
-    else
+    if [[ -d "$reactDir/$2" ]]; then
+        for i in "$@"; do  
+            case "$i" in
+                --silent ) silent=true;;
+            esac
+        done
+        cd $reactDir$2
+        npm run build
         if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
+        if [[ -f ./for-wp ]]; then 
+            file="$reactDir/$2/for-wp"
+            while IFS= read line; do
+                eval $line
+            done <"$file"
+            if [[ $plugin_subdirectory != '' ]]; then
+                plugin_subdirectory="/$plugin_subdirectory";
+            fi
+            if [[ $has_requests ]]; then
+                dirCode="<script>window.ajaxValues = {
+        ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
+        nonce: '<?php echo wp_create_nonce( "$nonce_prefix" ) ?>',
+        directory: '<?php plugins_url() . '/$plugin_name$plugin_subdirectory' ?>'
+    }</script>
+    "
+            else
+                dirCode=""
+            fi
+            cd build
+            dirCode="$dirCode<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
+            mv index.html index.html.php
+            echo "$dirCode
+            $(cat index.html.php)" > index.html.php
+            sed 's/\/static/<?php echo $directory ?>\/static/g' <index.html.php > temp
+            mv temp index.html.php
+        else
+            if [[ $silent != true ]]; then
+                paplay $HOME/Music/system-ready.ogg
+            fi
+        fi
+    else
+        echo "not an existing project."
     fi
 # common commands pull to or from a central common file directory in reactApp folder.
 elif [[ $1 == 'common' ]]; then
