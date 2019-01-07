@@ -188,7 +188,7 @@ function editCategory()
 # changeDirectory allows the user to change their directory in which their applications are placed.
 function changeDirectory()
 {
-    echo "Please enter your React Native Application directory"
+    echo "Please enter your React Application directory"
     read -e -p "Directory:" inputDir
     inputDir=$(eval echo $inputDir)
     if [ -d "$inputDir" ]; then
@@ -198,6 +198,7 @@ function changeDirectory()
         yesNo
         if [[ $? == 1 ]]; then
             mkdir $inputDir
+            reactDir="$inputDir"
         else
             echo "exiting"
             exit
@@ -205,7 +206,26 @@ function changeDirectory()
     fi
     echo $reactDir > "$appDir/reactDir.tmp"
 }
-
+function changeWPDirectory()
+{
+    echo "Please enter your Wordpress Project directory"
+    read -e -p "Directory:" inputDir
+    inputDir=$(eval echo $inputDir)
+    if [ -d "$inputDir" ]; then
+        wpDir="$inputDir"
+    else
+        echo "This directory does not exist. Create this directory? [y/n]"
+        yesNo
+        if [[ $? == 1 ]]; then
+            mkdir $inputDir
+            wpDir="$inputDir"
+        else
+            echo "exiting"
+            exit
+        fi
+    fi
+    echo $wpDir > "$appDir/wpDir.tmp"
+}
 # makes base directories for application data.
 if [[ ! -d $appDir ]]; then
     mkdir $appDir
@@ -221,6 +241,11 @@ if [[ -f "$appDir/reactDir.tmp" ]]; then
     reactDir=$(<$appDir/reactDir.tmp)
 else
     changeDirectory
+fi
+if [[ -f "$appDir/wpDir.tmp" ]]; then
+    wpDir=$(<$appDir/wpDir.tmp)
+else
+    changeWPDirectory
 fi
 if [[ -f "$appDir/categories.tmp" ]]; then
     file="$appDir/categories.tmp"
@@ -431,7 +456,7 @@ export const requestTemplate = () => {
         if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
-        read -p "Plugin Name: " plugin
+        read -p "Plugin Base Directory: " plugin
         read -p "subdirectory, if any: " subdir
         read -p "Nonce value prefix: " nonce_prefix
         if [[ $ajax == true || $socket == true ]]; then
@@ -482,18 +507,33 @@ elif [[ $1 == 'build' ]]; then
                 --silent ) silent=true;;
             esac
         done
-        cd $reactDir$2
+        cd "$reactDir/$2"
         npm run build
         if [[ $silent != true ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
-        if [[ -f ./for-wp ]]; then 
+        if [[ -f ./for-wp ]]; then
+            if [[ -z "$wpDir" ]]; then
+                echo "No directory location for wordpress Projects.
+Would you like to set a directory for
+your wordpress projects?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    changeWPDirectory
+                else
+                    echo "exiting..."
+                    exit
+                fi
+            fi
             file="$reactDir/$2/for-wp"
             while IFS= read line; do
                 eval $line
             done <"$file"
-            if [[ $plugin_subdirectory != '' ]]; then
-                plugin_subdirectory="/$plugin_subdirectory";
+            project_directory="$wpDir$plugin_name"
+            if [[ "$plugin_subdirectory" != '' ]]; then
+                full_directory="$project_directory$plugin_subdirectory";
+            else
+                full_directory="$project_directory"
             fi
             if [[ $has_requests ]]; then
                 dirCode="<script>window.ajaxValues = {
@@ -512,6 +552,39 @@ elif [[ $1 == 'build' ]]; then
             $(cat index.html.php)" > index.html.php
             sed 's/\/static/<?php echo $directory ?>\/static/g' <index.html.php > temp
             mv temp index.html.php
+            if [[ ! -d "$project_directory" ]]; then
+                echo "It looks like that project doesn't exist 
+within your wordpress projects directory.
+Would you like to create the project now?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    mkdir "$project_directory"
+                    if [[ ! "$plugin_subdirectory" == '' ]]; then
+                        mkdir "$full_directory"
+                    fi
+                else
+                    echo "exiting..."
+                    exit
+                fi
+            fi
+            if [[ -d "$full_directory" ]]; then
+                fileName=$(find $full_directory -maxdepth 1 -name precache*)
+                if [[ -z "$filename" ]]; then
+                    echo "WARNING: this will delete and fully replace 
+the react build files within 
+$full_directory
+Continue?"
+                fi
+                yesNo
+                if [[ $? == 1 ]]; then
+                    rm "$fileName"
+                    rm -r "$full_directory/static"
+                    cp -r "$reactDir$2/build/"* "$full_directory"
+                else
+                    echo "exiting..."
+                    exit
+                fi
+            fi
         else
             if [[ $silent != true ]]; then
                 paplay $HOME/Music/system-ready.ogg
@@ -654,7 +727,7 @@ elif [ -d "$reactDir/$1" ]; then
 elif [[ $1 == 'help' ]]; then
     echo "current reactApp Directory: $reactDir
 [app]: runs [app].
-create [app]: creates a React Native application [app] 
+create [app]: creates a React application [app] 
     inside the reactApp directory. Plays indicator noise 
     at completion of task.
         NOTE: create automatically installs 
@@ -684,6 +757,9 @@ open [app]: opens the root directory of the specified application.
 build [app]: builds the application. If this was created 
     with the --wp setting, it builds for insertion into a wordpress 
     plugin. Plays indicator noise at completion of task.
+    NOTE: as of this time, media files will not function properly
+    within a build. They must be included within the WP plugin
+    and have their locations retrieved via ajax request.
         --silent prevents indicator sound playing at completion
 list: lists applications in reactApp directory.
 reset [app]: clears and reinstalls node repositories within [app].
@@ -700,5 +776,5 @@ common [parameter]:
      list: lists apps within reactApp directory.
 changeDir: changes reactApp directory."
 else
-    echo "Unknown command or ~/Dropbox/NativeProjects/$1 does not exist. User 'reactApp create $1' to create this app."
+    echo "Unknown command or $reactDir does not exist. User 'reactApp create $1' to create this app."
 fi
