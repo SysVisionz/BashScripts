@@ -531,7 +531,7 @@ your wordpress projects?"
             done <"$file"
             project_directory="$wpDir$plugin_name"
             if [[ "$plugin_subdirectory" != '' ]]; then
-                full_directory="$project_directory$plugin_subdirectory";
+                full_directory="$project_directory/$plugin_subdirectory";
             else
                 full_directory="$project_directory"
             fi
@@ -567,22 +567,44 @@ Would you like to create the project now?"
                     exit
                 fi
             fi
-            if [[ -d "$full_directory" ]]; then
-                fileName=$(find $full_directory -maxdepth 1 -name precache*)
-                if [[ -z "$filename" ]]; then
-                    echo "WARNING: this will delete and fully replace 
-the react build files within 
-$full_directory
-Continue?"
-                fi
+            if [[ ! -d "$full_directory" ]]; then
+                sub_name="${full_directory/*\/}"
+                echo "It looks like the subdirectory $sub_name 
+doesn't exist within this wordpress project 
+directory.
+Would you like to create the subdirectory now?"
                 yesNo
                 if [[ $? == 1 ]]; then
-                    rm "$fileName"
-                    rm -r "$full_directory/static"
-                    cp -r "$reactDir$2/build/"* "$full_directory"
+                    if [[ ! "$plugin_subdirectory" == '' ]]; then
+                        mkdir "$full_directory"
+                    fi
                 else
                     echo "exiting..."
                     exit
+                fi
+            fi
+            if [[ -d "$full_directory" ]]; then
+                file_name=$(find $full_directory -maxdepth 1 -name precache*)
+                if [[ ! "$file_name" == '' || -d "$full_directory/static" ]]; then
+                    echo "WARNING: this will fully replace 
+the react build files within 
+$full_directory
+Continue?"
+                    yesNo
+                    if [[ $? == 1 ]]; then
+                        if [[ ! "file_name" == '' ]]; then
+                            rm "$file_name"
+                        fi
+                        if [[ -d "$full_directory/static" ]]; then
+                            rm -r "$full_directory/static"
+                        fi
+                        cp -r "$reactDir$2/build/"* "$full_directory"
+                    else
+                        echo "exiting..."
+                        exit
+                    fi
+                else
+                    cp -r "$reactDir$2/build/"* "$full_directory"
                 fi
             fi
         else
