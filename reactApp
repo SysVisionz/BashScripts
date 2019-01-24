@@ -265,7 +265,7 @@ fi
 
 function checkCommand()
 {
-    if [[ -d "$reactDir/$1" ]]; then
+    if [[ -d "$reactDir/$1" || $command ]]; then
         target="$1"
     else
         checkShortcut "$1"
@@ -329,7 +329,7 @@ for i in "$@"; do
     esac
 done
 # create command creates a new react react app with the given name.
-if [[ "$command" == 'create' ]]; then
+if [[ "$command" == "create" ]]; then
     cd "$reactDir"
     create-react-app "$target"
     mkdir "$reactDir/$target/src/components"
@@ -805,10 +805,10 @@ elif [[ "$command" == "open" ]]; then
     xdg-open "$reactDir/$target"
 elif [[ "$command" == "shortcut" && -d "$reactDir/$target" ]]; then
     makeShortcut "$shortcut" "$target"
-elif [ -d "$reactDir/$target" ]; then
+elif [[ $target && -d "$reactDir/$target" ]]; then
     cd "$reactDir/$target"
     npm start
-elif [[ "$command" == 'help' ]]; then
+elif [[ "$command" == "help" ]]; then
     echo "current reactApp Directory: $reactDir
 [app]: runs [app].
 shortcut [shortcut target] -s=[shortcut name]: makes the used name
