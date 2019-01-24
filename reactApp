@@ -4,25 +4,16 @@ appDir="$HOME/.reactApp"
 commonDir="$appDir/common"
 categoryDir="$appDir/categories"
 
-
 # function checkCategory allows you to check categories.tmp to see if the specified category exists already.
 function checkCategory()
 {
     file="$appDir/categories.tmp"
     while IFS= read line; do
-        if [[ $1 == $line ]]; then
+        if [[ "$1{" == $line ]]; then
             return 1
         fi
     done <"$file"
     return 0
-}
-
-function arrayToFile()
-{
-    echo -n> $1
-    for i in ${array[@]}; do
-        echo $i >> $1
-    done
 }
 
 # function copier takes $1 file or directory and copies it to storage, adding it to $2 category
@@ -31,7 +22,7 @@ function copier()
     nameOf=`basename $1`
     for i in $( ls $commonDir); do
         copyFile=true
-        if [[ $i == $nameOf ]]; then
+        if [[ "$i" == $nameOf ]]; then
             if [[ -d $1 ]]; then
                 echo "Directory $element is already part of your common storage."
                 echo "Overwrite the directory currently in your common storage?"
@@ -40,7 +31,7 @@ function copier()
                 echo "Overwrite the file currently in your common storage?"
             fi
             yesNo
-            if [[ $? != 1 ]]; then
+            if [[ $? == 0 ]]; then
                 copyFile=false
             fi
             break
@@ -48,15 +39,15 @@ function copier()
     done
     # if the file has no conflicts or if the user has decided to overwrite the original, copy the file or directory.
     if [[ $copyFile == true ]]; then
-        if [[ -f $1 ]]; then
-            cp $1 $commonDir
+        if [[ -f "$1" ]]; then
+            cp "$1" "$commonDir"
         elif [[ -d $1 ]]; then
-            cp -r $1/ $commonDir
+            cp -r "$1/" "$commonDir"
         fi
     fi
     # if a category was declared, add this file or directory to that category.
     if [[ $2 != '' ]]; then
-        echo $nameOf >> $categoryDir/$2.tmp
+        addToCategory $nameOf $2
     fi
 }
 
@@ -95,20 +86,67 @@ function yesNo()
 # checkInCategory searches within a category's data to see if the specified file or directory already exists within that category.
 function checkInCategory()
 {
-    file="$categoryDir/$2.tmp"
+    active=false
+    file="$appDir/categories.tmp"
     while IFS= read line; do
-        if [[ $1 == $line ]]; then
+        if [[ "$2{" == "$line" ]]; then
+            active=true
+        fi
+        if [[ $active ]]; then
+            if [[ "$1" == "$line" ]]; then
+                return 1
+            fi
+            if [[ "}" == "$line" ]]; then
+                break
+            fi
+        fi
+    done <"$file"
+    return 0
+}
+
+function checkShortcut()
+{
+    file="$appDir/shortcuts.tmp"
+    while IFS= read line; do
+        name="${line%=*}"
+        if [[ "$name" != '' && "$name" == "$1" ]]; then
+            length=${#name}+1
+            target="${line:$length}"
             return 1
         fi
     done <"$file"
     return 0
 }
 
+function makeShortcut()
+{
+    touch "$appDir/tempshort"
+    found=false
+    if [[ -f "$appDir/shortcuts.tmp" ]]; then
+        file="$appDir/shortcuts.tmp"
+        while IFS= read line; do
+            name="${line%=*}"
+            if [[ "$name" == "$1" ]]; then
+                found=true
+                echo "$1=$2">>"$appDir/tempshort"
+            else
+                echo "$line">>"$appDir/tempshort"
+            fi
+        done <"$file"
+        if [[ ! $found ]]; then
+            echo "$1=$2">>"$appDir/tempshort"
+        fi
+         mv "$appDir/tempshort" "$appDir/shortcuts.tmp"
+    else
+        echo "$1=$2">"$appDir/shortcuts.tmp"
+    fi
+}
+
 # inArray searches an array to see if a particular variable exists within that array.
 function inArray()
 {
     for i in $2; do
-        if [[ $i == $1 ]]; then
+        if [[ "$i" == $1 ]]; then
             return 1
         fi
     done
@@ -118,66 +156,41 @@ function inArray()
 # editCategory allows the user to add or remove elements to a category, or create a new category altogether.
 function editCategory()
 {
-    if [[ ! -f "$categoryDir/$1.tmp" ]]; then
-        touch "$categoryDir/$1.tmp"
-    fi
-    file="$appDir/categories.tmp"
     listedCategories=()
+    file="$appDir/categories.tmp"
     while IFS= read line; do
-        listedCategories+=($line)
-    done <"$file"
-    addToDoc=true
-    for i in ${listedCategories[@]}; do
-        if [[ $i == $1 ]]; then
-            addToDoc=false
+        if [[ "${line: -1}" == "{" ]]; then
+            listedCategories+=("${line:0:-1}")
         fi
-    done
-    if [[ $addToDoc == true ]]; then
-        echo $1>>$appDir/categories.tmp
-    fi
-    file="$categoryDir/$1.tmp"
-    while IFS= read line; do
-        items+=($line)
     done <"$file"
-    element=""
     while true; do
         echo "Which file or directory do you wish to add to or remove from this category?"
         echo "Current files and directories in common storage (files or directories already in this category are marked with a *)"
         echo 'enter "quit" when finished'
         array=()
-        for i in $( ls $commonDir); do
-            checkInCategory $i $1
+        for i in $( ls "$commonDir"); do
+            checkInCategory "$i" "$1"
             if [[ $? == 1 ]]; then
-                echo "*" $i
-                array+=($i)
+                echo "*" "$i"
+                array+=("$i")
             else
-                echo $i
+                echo "$i"
             fi
         done
         read -p "file or directory to add or remove: " element
         if [[ -f "$commonDir/$element" || -d "$commonDir/$element" ]]; then
-            checkInCategory $element $1
+            checkInCategory "$element" "$1"
             if [[ $? == 1 ]]; then
                 echo "This file or directory is already in this category. Remove from category?"
                 yesNo
                 if [[ $? == 1 ]]; then
                     count=0
-                    for i in ${array[@]}; do
-                        if [[ $i == $element ]]; then
-                            echo "deleting $i"
-                            unset array[$count]
-                            array=( "${array[@]}" )
-                            break
-                        fi
-                        let count++
-                    done
-                    echo "${array[*]}"
-                    arrayToFile $categoryDir/$1.tmp
+                    removeFromCategory "$element" "$category"
                 fi
             elif [[ $element == "quit" ]]; then
                 break
             else
-                echo $element >> $categoryDir/$1.tmp
+                addToCategory "$element" "$1"
             fi
         else
             echo "Not an existing file or directory."
@@ -190,21 +203,21 @@ function changeDirectory()
 {
     echo "Please enter your React Application directory"
     read -e -p "Directory:" inputDir
-    inputDir=$(eval echo $inputDir)
+    inputDir="$(eval echo "$inputDir")"
     if [ -d "$inputDir" ]; then
         reactDir="$inputDir"
     else
         echo "This directory does not exist. Create this directory? [y/n]"
         yesNo
         if [[ $? == 1 ]]; then
-            mkdir $inputDir
+            mkdir "$inputDir"
             reactDir="$inputDir"
         else
             echo "exiting"
             exit
         fi
     fi
-    echo $reactDir > "$appDir/reactDir.tmp"
+    echo "$reactDir" > "$appDir/reactDir.tmp"
 }
 function changeWPDirectory()
 {
@@ -224,17 +237,14 @@ function changeWPDirectory()
             exit
         fi
     fi
-    echo $wpDir > "$appDir/wpDir.tmp"
+    echo "$wpDir" > "$appDir/wpDir.tmp"
 }
 # makes base directories for application data.
-if [[ ! -d $appDir ]]; then
-    mkdir $appDir
+if [[ ! -d "$appDir" ]]; then
+    mkdir "$appDir"
 fi
-if [[ ! -d $commonDir ]]; then
-    mkdir $commonDir
-fi
-if [[ ! -d $categoryDir ]]; then
-    mkdir $categoryDir
+if [[ ! -d "$commonDir" ]]; then
+    mkdir "$commonDir"
 fi
 # pulls directory for react applications from application data or allows user to set that directory.
 if [[ -f "$appDir/reactDir.tmp" ]]; then
@@ -244,8 +254,6 @@ else
 fi
 if [[ -f "$appDir/wpDir.tmp" ]]; then
     wpDir=$(<$appDir/wpDir.tmp)
-else
-    changeWPDirectory
 fi
 if [[ -f "$appDir/categories.tmp" ]]; then
     file="$appDir/categories.tmp"
@@ -254,41 +262,102 @@ if [[ -f "$appDir/categories.tmp" ]]; then
     done <"$file"
 fi
 
+function checkCommand()
+{
+    if [[ -d "$reactDir/$1" ]]; then
+        target="$1"
+    else
+        checkShortcut "$1"
+        if [[ $? == 0 ]]; then
+            command="$1"
+        fi
+    fi
+}
+
+function addToCategory()
+{
+    touch tempcat
+    file="$appDir/categories.tmp";
+    while IFS= read line; do
+        name="${line%=*}"
+        if [[ "$2{" == "$line" ]]; then
+            echo "$line">>"$appDir/tempcat"
+            echo "$1=$2">>"$appDir/tempcat"
+        else
+            echo "$line">>"$appDir/tempcat"
+        fi
+    done <"$file"
+    mv "$appDir/tempcat" "$appDir/categories.tmp"
+}
+
+function removeFromCategory()
+{
+    touch tempcat
+    file="$appDir/categories.tmp";
+    while IFS= read line; do
+        name="${line%=*}"
+        if [[ "$2{" == "$line" ]]; then
+            active=true;
+        fi
+        if [[ $active ]]; then
+            if [[ "$line" != "$1" ]]; then
+                echo "$line">>"$appDir/tempcat"
+            fi
+        else
+            echo "$line">>"$appDir/tempcat"
+        fi
+    done <"$file"
+    mv "$appDir/tempcat" "$appDir/categories.tmp"
+}
+
+command=""
+wp=false
+basic=false
+server=false
+redux=true
+socket=false
+type=false
+silent=false
+ajax=false
+add=false
+basic=false
+get=false
+edit=false
+category=''
+shortcut=''
+for i in "$@"; do
+    case "$i" in
+        --wp ) wp=true;;
+        --basic ) basic=true;;
+        --server ) server=true;;
+        --no-redux ) redux=false;;
+        --socket ) socket=true;;
+        --silent ) silent=true;;
+        --ajax ) ajax=true;;
+        --add ) add=true;;
+        --get ) get=true;;
+        --edit ) edit=true;;
+        -s=* ) shortcut="${i:3}";;
+        -c=* ) category="${i:3}";;
+        * ) checkCommand "$i";;
+    esac
+done
 # create command creates a new react react app with the given name.
-if [[ $1 == 'create' ]]; then
-    cd $reactDir
-    create-react-app $2
-    mkdir $reactDir/$2/src/components
-    cd $2
-    wp=false
-    basic=false
-    server=false
-    redux=true
-    socket=false
-    type=false
-    silent=false
-    ajax=false
-    for i in "$@"; do  
-        case "$i" in
-            --wp ) wp=true;;
-            --basic ) basic=true;;
-            --server ) server=true;;
-            --no-redux ) redux=false;;
-            --socket ) socket=true;;
-            --silent ) silent=true;;
-            --ajax ) ajax=true;;
-        esac
-    done
-    if [[ $basic == false ]]; then
+if [[ "$command" == 'create' ]]; then
+    cd "$reactDir"
+    create-react-app "$target"
+    mkdir "$reactDir/$target/src/components"
+    cd "$target"
+    if [[ !$basic ]]; then
         npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator && npm i --save-dev eslint
     fi
-    if [[ $ajax == true ]]; then
+    if [[ $ajax ]]; then
         npm i --save request-promise
     fi
-    if [[ $socket == true ]]; then
+    if [[ $socket ]]; then
          npm i --save socket.io-client
     fi
-    if [[ $redux == true && $basic == false ]]; then
+    if [[ $redux && !$basic ]]; then
         cd src
         echo "import React from 'react';
 import ReactDOM from 'react-dom';
@@ -331,7 +400,7 @@ export default (state=INITIAL_STATE, action) => {
     }
 }" > reduxReducer.js
         cd ../actions
-        if [[ $wp == true ]] && [[ $ajax == true || $socket == true ]]; then
+        if [[ $wp ]] && [[ $ajax || $socket ]]; then
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
@@ -354,7 +423,7 @@ const getURI = config => {
             special=""
             url="window.location.origin,"
         fi
-        if [[ $socket == true ]]; then
+        if [[ $socket ]]; then
             echo "import request from 'request-promise'
 import socketIOClient from 'socket.io-client';
 $special
@@ -408,7 +477,7 @@ export const socketTemplate = ( socket) => {
     }
 }" > templateActions.js
             echo "export * from './socketRequestTemplateActions';" > index.js
-        elif [[ $ajax == true ]]; then
+        elif [[ $ajax ]]; then
             echo "import request from 'request-promise'
 $special
 export const update = data => {
@@ -454,12 +523,12 @@ export const requestTemplate = () => {
         cd ../../
         npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
         if [[ $silent != true ]]; then
-            paplay $HOME/Music/system-ready.ogg
+            paplay "$HOME/Music/system-ready.ogg"
         fi
         read -p "Plugin Base Directory: " plugin
         read -p "subdirectory, if any: " subdir
         read -p "Nonce value prefix: " nonce_prefix
-        if [[ $ajax == true || $socket == true ]]; then
+        if [[ $ajax || $socket ]]; then
             echo "has_requests=true" > for-wp
         else
             echo "has_requests=false" > for-wp
@@ -468,7 +537,7 @@ export const requestTemplate = () => {
 plugin_subdirectory=\"$subdir\"
 nonce_prefix=\"$nonce_prefix\"" >> for-wp
     fi
-    if [[ $wp == true ]]; then
+    if [[ $wp ]]; then
         cd ./public
         rm favicon.ico
         rm manifest.json
@@ -481,39 +550,33 @@ nonce_prefix=\"$nonce_prefix\"" >> for-wp
     <div id=\"root\"></div>
   </body>
 </html>" > index.html
-    elif [[ $server == true ]]; then
+    elif [[ $server ]]; then
         npm i --save mongodb && npm i --save mongoose
-        if [[ $socket == true ]]; then
+        if [[ $socket ]]; then
             npm i --save socket.io
         fi
-        if [[ $silent != true ]]; then
+        if [[ ! $silent ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
     else
-        if [[ $silent != true ]]; then
+        if [[ ! $silent ]]; then
             paplay $HOME/Music/system-ready.ogg
         fi
     fi
 # reset will reset the node modules and reinstall them.
-elif [[ $1 == 'reset' ]]; then
-        cd $reactDir/$2
+elif [[ "$command" == "reset" ]]; then
+        cd "$reactDir/$target"
         rm -rf node_modules
         npm install
-elif [[ $1 == 'build' ]]; then
-    silent=false;
-    if [[ -d "$reactDir/$2" ]]; then
-        for i in "$@"; do  
-            case "$i" in
-                --silent ) silent=true;;
-            esac
-        done
-        cd "$reactDir/$2"
+elif [[ "$command" == "build" ]]; then
+    if [[ -d "$reactDir/$target" ]]; then
+        cd "$reactDir/$target"
         npm run build
-        if [[ $silent != true ]]; then
-            paplay $HOME/Music/system-ready.ogg
+        if [[ ! $silent ]]; then
+            paplay "$HOME/Music/system-ready.ogg"
         fi
         if [[ -f ./for-wp ]]; then
-            if [[ -z "$wpDir" ]]; then
+            if [[ ! $wpDir ]]; then
                 echo "No directory location for wordpress Projects.
 Would you like to set a directory for
 your wordpress projects?"
@@ -525,11 +588,16 @@ your wordpress projects?"
                     exit
                 fi
             fi
-            file="$reactDir/$2/for-wp"
+            file="$reactDir/$target/for-wp"
             while IFS= read line; do
-                eval $line
+                case "$line" in
+                    plugin_name=* ) plugin_name="${line:13:-1}";;
+                    plugin_subdirectory=* ) plugin_subdirectory="${line:21:-1}";;
+                    has_requests=* ) has_requests="${line:13}";;
+                    * ) break
+                esac
             done <"$file"
-            project_directory="$wpDir$plugin_name"
+            project_directory="$wpDir/$plugin_name"
             if [[ "$plugin_subdirectory" != '' ]]; then
                 full_directory="$project_directory/$plugin_subdirectory";
             else
@@ -598,34 +666,38 @@ Continue?"
                         if [[ -d "$full_directory/static" ]]; then
                             rm -r "$full_directory/static"
                         fi
-                        cp -r "$reactDir$2/build/"* "$full_directory"
+                        cp -r "$reactDir/$target/build/"* "$full_directory"
                     else
                         echo "exiting..."
                         exit
                     fi
                 else
-                    cp -r "$reactDir$2/build/"* "$full_directory"
+                    cp -r "$reactDir/$target/build/"* "$full_directory"
                 fi
             fi
-        else
-            if [[ $silent != true ]]; then
-                paplay $HOME/Music/system-ready.ogg
+            if [[ -f "$wpDir/$plugin_name.zip" ]]; then
+                echo "Replace $wpDir/$plugin_name.zip?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    zip -r -q "$wpDir/$plugin_name.zip" "$wpDir/$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
+                fi
+            else 
+                zip -r -q "$wpDir/$plugin_name.zip" "$wpDir/$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
             fi
         fi
     else
         echo "not an existing project."
     fi
 # common commands pull to or from a central common file directory in reactApp folder.
-elif [[ $1 == 'common' ]]; then
+elif [[ "$command" == "common" ]]; then
     # common get command retrieves the common files within a particular category or all common files.
-    if [[ $2 == 'get' ]]; then
+    if [[ $get ]]; then
         # if a category is specified with the get command, retrieve the files within the given category.
-        if [[ $4 != '' ]]; then
-            checkCategory $4
+        if [[ $category != '' ]]; then
             if [[ $? == 1 ]]; then
-                file="$categoryDir/$4.tmp"
+                file="$categoryDir/$category.tmp"
                 while IFS= read line; do
-                    cp $commonDir/$line $reactDir/$3/src/components/common/
+                    cp "$commonDir/$line" "$reactDir/$target/src/components/common/"
                 done <"$file"
             fi
         # if a category is not specified with the get command, verify if the user meant to specify the category, or wants to pull all existing common files.
@@ -633,45 +705,43 @@ elif [[ $1 == 'common' ]]; then
             echo "Would you like to add all common files in all categories to the target project? (Y/n)"
             yesNo
             if [[ $? == 1 ]]; then
-                cp $commonDir/. $reactDir/$3/src/components/common/
+                cp "$commonDir/." "$reactDir/$target/src/components/common/"
             else
                 echo "What category would you like to pull from?"
                 cont=true
-                while [[ $cont ]]; do
+                while [[ "$cont" ]]; do
                     echo "Existing categories:"
                     echo "${categories[*]}"
                     read -p "Category: " category
-                    checkCategory $category
-                    if [[ $? != 1 ]]; then
+                    checkCategory "$category"
+                    if [[ $? == 0 ]]; then
                         echo "Not a valid category."
                     else
-                        file="$categoryDir/$4.tmp"
+                        file="$categoryDir/$category.tmp"
                         while IFS= read line; do
-                            cp $commonDir/$line $reactDir/$3/src/components/common/
-                        done
+                            cp "$commonDir/$line $reactDir/$target/src/components/common/"
+                        done <"$file"
                         cont=false
                     fi
                 done
             fi
         fi
     # common edit allows you to edit the current common file categories.
-    elif [[ $2 == 'edit' ]]; then
+    elif [[ $edit ]]; then
         # if the category isn't specified, ask user to specify category.
-        if [[ $3 == '' ]]; then
+        if [[ $category == '' ]]; then
             echo "What category would you like to edit?"
             echo "Categories: ${categories[*]}"
             read -p "Category: " category
-        else
-            category=$3
         fi
         # if the category doesn't exist, see if the user would like to create this category.
-        checkCategory $category
-        if [[ $? != 1 ]]; then
+        checkCategory "$category"
+        if [[ $? == 0 ]]; then
             echo "Not an existing category."
             echo "Create this category?"
             yesNo
             if [[ $? == 1 ]]; then
-                editCategory $category
+                editCategory "$category"
             fi
         # if the category does exist, check if the user would like to delete it, then allow them to edit it.
         else
@@ -681,19 +751,19 @@ elif [[ $1 == 'common' ]]; then
                 array=( "${categories[@]}" )
                 count=0
                 for i in ${array[@]}; do
-                    if [[ $i == $category ]]; then
+                    if [[ "$i" == "$category" ]]; then
                         echo "deleting $i"
                         unset array[$count]
                         break
                     fi
                     let count++
                 done
-                arrayToFile $appDir/categories.tmp
+                arrayToFile "$appDir/categories.tmp"
             else
-                editCategory $category
+                editCategory "$category"
             fi
         fi
-    elif [[ $2 == 'add' ]]; then
+    elif [[ $add ]]; then
         echo "Add this directory or file to specific category? (Y/n)"
         cont=true
         yesNo
@@ -703,12 +773,12 @@ elif [[ $1 == 'common' ]]; then
                 echo "Existing categories:"
                 echo "${categories[*]}"
                 read -p "Category: " category
-                checkCategory $category
-                if [[ $? != 1 ]]; then
+                checkCategory "$category"
+                if [[ $? == 0 ]]; then
                     echo "Create $category category?"
                     yesNo
                     if [[ $? == 1 ]]; then
-                        echo $category >>  "$appDir/categories.tmp"
+                        echo "$category" >>  "$appDir/categories.tmp"
                         isNew=true
                         break
                     fi
@@ -720,7 +790,7 @@ elif [[ $1 == 'common' ]]; then
         else
             categoryUsed=false
         fi
-        cd $reactDir
+        cd "$reactDir"
         if [[ $categoryUsed == false ]]; then
             echo "What file or directory would you like to add to common files?"
             read -e -p "$reactDir" fileOrDirectory
@@ -728,27 +798,38 @@ elif [[ $1 == 'common' ]]; then
         else
             echo "What file or directory would you like to add to common files under the $category category?"
             read -e -p "$reactDir" fileOrDirectory
-            addItem $fileOrDirectory $category
+            addItem "$fileOrDirectory" "$category"
         fi
-    elif [[ $2 == 'reset' ]]; then
-        rm -R $commonDir
-        mkdir $commonDir
     fi
 # list will list the app directories in the main react app directory.
-elif [[ $1 == 'list' ]]; then
+elif [[ "$command" == "list" ]]; then
     ls $reactDir
-elif [[ $1 == 'changeDir' ]]; then
-    changeDirectory
-elif [[ $1 == 'curDir' ]]; then
-    echo $reactDir
-elif [[ $1 == 'open' ]]; then
-    xdg-open $reactDir/$2
-elif [ -d "$reactDir/$1" ]; then
-    cd $reactDir/$1
+    file="$appDir/shortcuts.tmp"
+    echo "assigned shortcuts:"
+    while IFS= read line; do
+        echo "$line"
+    done <"$file"
+elif [[ "$command" == "changeDir" ]]; then
+    if [[ $wp ]]; then
+        changeWPDirectory
+    else
+        changeDirectory
+    fi
+elif [[ "$command" == "curDir" ]]; then
+    echo "$reactDir"
+elif [[ "$command" == "open" ]]; then
+    xdg-open "$reactDir/$target"
+elif [[ "$command" == "shortcut" && -d "$reactDir/$target" ]]; then
+    makeShortcut "$shortcut" "$target"
+elif [ -d "$reactDir/$target" ]; then
+    cd "$reactDir/$target"
     npm start
-elif [[ $1 == 'help' ]]; then
+elif [[ "$command" == 'help' ]]; then
     echo "current reactApp Directory: $reactDir
 [app]: runs [app].
+shortcut [shortcut target] -s=[shortcut name]: makes the used name
+    into a shortcut to the specified target application.
+    shortcuts can then be used to target that file.
 create [app]: creates a React application [app] 
     inside the reactApp directory. Plays indicator noise 
     at completion of task.
@@ -783,20 +864,18 @@ build [app]: builds the application. If this was created
     within a build. They must be included within the WP plugin
     and have their locations retrieved via ajax request.
         --silent prevents indicator sound playing at completion
-list: lists applications in reactApp directory.
+list: lists applications in reactApp directory, and current shortcuts.
 reset [app]: clears and reinstalls node repositories within [app].
-common [parameter]:
-     parameter [add] saves a file or directory to your common 
-        files store, allowing you to add a category to it.
-     parameter [get] [app] [category] copies files in given 
-        category to the target app. If no category is given, 
-        you can enter one, or copy all existing common files. 
-     parameter [edit] allows you to edit a category by adding 
+common: allows for copying of common files to a central directory ()
+     --add ) saves a file or directory to your common files store, allowing you to add a category to it.
+     --get ) copies common files to the target app. 
+     If no category is given, all existing common files are copied. 
+     --edit allows you to edit a category by adding 
         or removing files currently in your common storage to a 
         category.
-     parameter [reset] clears the stored reactApp common files.
+     -c=[category] sets the category being used.
      list: lists apps within reactApp directory.
-changeDir: changes reactApp directory."
+changeDir: changes reactApp directory. if used with --wp, changes the wordpress project directory instead."
 else
-    echo "Unknown command or $reactDir does not exist. User 'reactApp create $1' to create this app."
+    echo "Unknown command or $reactDir does not exist. User \"reactApp create $command\" to create this app."
 fi
