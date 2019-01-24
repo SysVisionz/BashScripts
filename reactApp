@@ -21,7 +21,6 @@ function copier()
 {
     nameOf=`basename $1`
     for i in $( ls $commonDir); do
-        copyFile=true
         if [[ "$i" == $nameOf ]]; then
             if [[ -d $1 ]]; then
                 echo "Directory $element is already part of your common storage."
@@ -32,13 +31,13 @@ function copier()
             fi
             yesNo
             if [[ $? == 0 ]]; then
-                copyFile=false
+                noCopyFile=true
             fi
             break
         fi
     done
     # if the file has no conflicts or if the user has decided to overwrite the original, copy the file or directory.
-    if [[ $copyFile == true ]]; then
+    if [[ ! $noCopyFile ]]; then
         if [[ -f "$1" ]]; then
             cp "$1" "$commonDir"
         elif [[ -d $1 ]]; then
@@ -46,7 +45,7 @@ function copier()
         fi
     fi
     # if a category was declared, add this file or directory to that category.
-    if [[ $2 != '' ]]; then
+    if [[ $2 ]]; then
         addToCategory $nameOf $2
     fi
 }
@@ -86,7 +85,6 @@ function yesNo()
 # checkInCategory searches within a category's data to see if the specified file or directory already exists within that category.
 function checkInCategory()
 {
-    active=false
     file="$appDir/categories.tmp"
     while IFS= read line; do
         if [[ "$2{" == "$line" ]]; then
@@ -121,24 +119,27 @@ function checkShortcut()
 function makeShortcut()
 {
     touch "$appDir/tempshort"
-    found=false
     if [[ -f "$appDir/shortcuts.tmp" ]]; then
         file="$appDir/shortcuts.tmp"
         while IFS= read line; do
             name="${line%=*}"
             if [[ "$name" == "$1" ]]; then
                 found=true
+                echo "revising shortcut with name $1 to target $2"
                 echo "$1=$2">>"$appDir/tempshort"
             else
                 echo "$line">>"$appDir/tempshort"
             fi
         done <"$file"
         if [[ ! $found ]]; then
+            echo "Making new shortcut to $2 with name $1"
             echo "$1=$2">>"$appDir/tempshort"
         fi
          mv "$appDir/tempshort" "$appDir/shortcuts.tmp"
+         echo "Added shortcut successfully!"
     else
         echo "$1=$2">"$appDir/shortcuts.tmp"
+         echo "Added shortcut successfully!"
     fi
 }
 
@@ -310,27 +311,12 @@ function removeFromCategory()
     mv "$appDir/tempcat" "$appDir/categories.tmp"
 }
 
-command=""
-wp=false
-basic=false
-server=false
-redux=true
-socket=false
-type=false
-silent=false
-ajax=false
-add=false
-basic=false
-get=false
-edit=false
-category=''
-shortcut=''
 for i in "$@"; do
     case "$i" in
         --wp ) wp=true;;
         --basic ) basic=true;;
         --server ) server=true;;
-        --no-redux ) redux=false;;
+        --no-redux ) no_redux=true;;
         --socket ) socket=true;;
         --silent ) silent=true;;
         --ajax ) ajax=true;;
@@ -357,7 +343,7 @@ if [[ "$command" == 'create' ]]; then
     if [[ $socket ]]; then
          npm i --save socket.io-client
     fi
-    if [[ $redux && !$basic ]]; then
+    if [[ ! $no_redux && ! $basic ]]; then
         cd src
         echo "import React from 'react';
 import ReactDOM from 'react-dom';
@@ -522,7 +508,7 @@ export const requestTemplate = () => {
         fi
         cd ../../
         npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
-        if [[ $silent != true ]]; then
+        if [[ ! $silent ]]; then
             paplay "$HOME/Music/system-ready.ogg"
         fi
         read -p "Plugin Base Directory: " plugin
@@ -530,8 +516,6 @@ export const requestTemplate = () => {
         read -p "Nonce value prefix: " nonce_prefix
         if [[ $ajax || $socket ]]; then
             echo "has_requests=true" > for-wp
-        else
-            echo "has_requests=false" > for-wp
         fi
         echo "plugin_name=\"$plugin\"
 plugin_subdirectory=\"$subdir\"
@@ -708,8 +692,7 @@ elif [[ "$command" == "common" ]]; then
                 cp "$commonDir/." "$reactDir/$target/src/components/common/"
             else
                 echo "What category would you like to pull from?"
-                cont=true
-                while [[ "$cont" ]]; do
+                while true; do
                     echo "Existing categories:"
                     echo "${categories[*]}"
                     read -p "Category: " category
@@ -721,7 +704,7 @@ elif [[ "$command" == "common" ]]; then
                         while IFS= read line; do
                             cp "$commonDir/$line $reactDir/$target/src/components/common/"
                         done <"$file"
-                        cont=false
+                        break;
                     fi
                 done
             fi
@@ -765,10 +748,8 @@ elif [[ "$command" == "common" ]]; then
         fi
     elif [[ $add ]]; then
         echo "Add this directory or file to specific category? (Y/n)"
-        cont=true
         yesNo
         if [[ $? == 1 ]]; then
-            categoryUsed=true
             while true; do
                 echo "Existing categories:"
                 echo "${categories[*]}"
@@ -779,19 +760,22 @@ elif [[ "$command" == "common" ]]; then
                     yesNo
                     if [[ $? == 1 ]]; then
                         echo "$category" >>  "$appDir/categories.tmp"
-                        isNew=true
                         break
+                    else
+                        echo "Proceed with no category?"
+                        yesNo
+                        if [[ $? == 1 ]]; then
+                            categoryNotUsed=true
+                            break
+                        fi
                     fi
-                else
-                    isNew=false
-                    cont=false
                 fi
             done
         else
-            categoryUsed=false
+            categoryNotUsed=true
         fi
         cd "$reactDir"
-        if [[ $categoryUsed == false ]]; then
+        if [[ $categoryNotUsed ]]; then
             echo "What file or directory would you like to add to common files?"
             read -e -p "$reactDir" fileOrDirectory
             addItem $fileOrDirectory
