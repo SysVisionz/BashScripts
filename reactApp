@@ -407,7 +407,7 @@ const getURI = config => {
             }),"
         else
             special=""
-            url="window.location.origin,"
+            url="url: window.location.origin,"
         fi
         if [[ $socket ]]; then
             echo "import request from 'request-promise'
@@ -424,7 +424,7 @@ export const requestTemplate = () => {
     return dispatch => {
         request({
             method: ,
-            url: $url,
+            $url,
             json: ,
             headers: {
             },
@@ -448,7 +448,7 @@ export const socketTemplate = ( socket) => {
     return dispatch => {
         request({
             method: '',
-            uri: $url,
+            $url,
             json: ,
             headers: {
             },
@@ -477,7 +477,7 @@ export const requestTemplate = () => {
     return dispatch => {
         request({
             method: ,
-            url: $url,
+            $url,
             json: ,
             headers: {
             },
