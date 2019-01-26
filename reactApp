@@ -335,7 +335,7 @@ if [[ "$command" == "create" ]]; then
     mkdir "$reactDir/$target/src/components"
     cd "$target"
     if [[ !$basic ]]; then
-        npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator && npm i --save-dev eslint
+        npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator
     fi
     if [[ $ajax ]]; then
         npm i --save request-promise
@@ -819,7 +819,7 @@ create [app]: creates a React application [app]
     at completion of task.
         NOTE: create automatically installs 
             react-transition-group, react-router-dom, 
-            prop-types, validator, eslint, redux, 
+            prop-types, validator, redux, 
             react-redux, and redux-thunk. Additionally, 
             typical redux actions and reducers templates 
             will also be set up.
