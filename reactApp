@@ -404,10 +404,10 @@ const getURI = config => {
 "
             url="url: getURI({
                 type: 'get_settings'
-            }),"
+            })"
         else
             special=""
-            url="url: window.location.origin,"
+            url="url: window.location.origin"
         fi
         if [[ $socket ]]; then
             echo "import request from 'request-promise'
