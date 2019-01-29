@@ -16,6 +16,25 @@ function checkCategory()
     return 0
 }
 
+function projNameInitGet () {
+    projNameInit=''
+    for word in $1; do
+        projNameInit+="${word:0:1}"
+        while true; do
+            if [[ ! "${word%%_*}" == "$word" ]]; then 
+                word="${word#*_}"
+                projNameInit+="${word:0:1}"
+            elif [[ $word =~ [A-Z] ]]; then
+                word="${word#*[:upper:]}"
+                projNameInit+="${word:0:1}"
+                word="${word:1}"
+            else
+                break;
+            fi
+        done
+    done
+}
+
 # function copier takes $1 file or directory and copies it to storage, adding it to $2 category
 function copier()
 {
@@ -267,11 +286,12 @@ function checkCommand()
 {
     if [[ -d "$reactDir/$1" || $command ]]; then
         target="$1"
-    else
         checkShortcut "$1"
-        if [[ $? == 0 ]]; then
-            command="$1"
+        if [[ $? == 1 ]]; then
+            break;
         fi
+    else
+        command="$1"
     fi
 }
 
@@ -313,21 +333,32 @@ function removeFromCategory()
 
 for i in "$@"; do
     case "$i" in
-        --wp ) wp=true;;
-        --basic ) basic=true;;
-        --server ) server=true;;
-        --no-redux ) no_redux=true;;
-        --socket ) socket=true;;
-        --silent ) silent=true;;
-        --ajax ) ajax=true;;
-        --add ) add=true;;
-        --get ) get=true;;
-        --edit ) edit=true;;
         -s=* ) shortcut="${i:3}";;
         -c=* ) category="${i:3}";;
+        -w ) ;&
+        --wp ) wp=true;;
+        -b ) ;&
+        --basic ) basic=true;;
+        -v ) ;&
+        --server ) server=true;;
+        -n ) ;&
+        --no-redux ) no_redux=true;;
+        -k ) ;&
+        --socket ) socket=true;;
+        -s ) ;&
+        --silent ) silent=true;;
+        -a ) ;&
+        --ajax ) ajax=true;;
+        -+ ) ;&
+        --add ) add=true;;
+        -g ) ;&
+        --get ) get=true;;
+        -e ) ;&
+        --edit ) edit=true;;
         * ) checkCommand "$i";;
     esac
 done
+
 # create command creates a new react react app with the given name.
 if [[ "$command" == "create" ]]; then
     cd "$reactDir"
@@ -386,15 +417,18 @@ export default (state=INITIAL_STATE, action) => {
     }
 }" > reduxReducer.js
         cd ../actions
+        if [[ $wp ]]; then
+            projNameInitGet "$plugin_name"
+        fi
         if [[ $wp ]] && [[ $ajax || $socket ]]; then
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    return ajax_url + \"?action=YOUR_WP_ACTION&nonce=\" + nonce;
+    return ajax_url + \"?action=$projNameInit_post=&nonce=\" + nonce;
 }
 const getURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    let retval = ajax_url + \"?action=YOUR_WP_ACTION\";
+    let retval = ajax_url + \"?action=$projNameInit_get\";
     config = {nonce, ...config}
     for (const i in config) {
         retval+= \"&\" + i + \"=\" + config[i];
@@ -513,13 +547,11 @@ export const requestTemplate = () => {
         fi
         read -p "Plugin Base Directory: " plugin
         read -p "subdirectory, if any: " subdir
-        read -p "Nonce value prefix: " nonce_prefix
         if [[ $ajax || $socket ]]; then
             echo "has_requests=true" > for-wp
         fi
         echo "plugin_name=\"$plugin\"
-plugin_subdirectory=\"$subdir\"
-nonce_prefix=\"$nonce_prefix\"" >> for-wp
+plugin_subdirectory=\"$subdir\"" >> for-wp
     fi
     if [[ $wp ]]; then
         cd ./public
@@ -590,7 +622,7 @@ your wordpress projects?"
             if [[ $has_requests ]]; then
                 dirCode="<script>window.ajaxValues = {
         ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
-        nonce: '<?php echo wp_create_nonce( "$nonce_prefix" ) ?>',
+        nonce: '<?php echo wp_create_nonce( "$" ) ?>',
         directory: '<?php plugins_url() . '/$plugin_name$plugin_subdirectory' ?>'
     }</script>
     "
@@ -613,6 +645,113 @@ Would you like to create the project now?"
                     mkdir "$project_directory"
                     if [[ ! "$plugin_subdirectory" == '' ]]; then
                         mkdir "$full_directory"
+                        echo "<?php 
+/*
+Plugin Name: 
+Description: 
+Version: 0.1
+Author: 
+Author URI: 
+*/
+
+//available settings types are text, textbox, radio, 
+function $projNameInit_on_initial () {
+    register_setting('$projNameInit_components', '$projNameInit_settings');
+    register_setting('$projNameInit_components', '$projNameInit_settings_values', array(
+        value0 => 'type',
+        value1 => array(
+            value0 => 'type'
+        )
+    ))
+}
+
+add_action('wp_ajax_nopriv_$projNameInit_get', '$projNameInit_get');
+add_action('wp_ajax_nopriv_$projNameInit_post', '$projNameInit_post');
+add_action('wp_ajax_$projNameInit_get', '$projNameInit_get');
+add_action('wp_ajax_$projNameInit_post', '$projNameInit_post');
+
+function $projNameInit_construct_settings (\$settings, \$settings_values) {
+    \$retval = array();
+    foreach (\$settings_values as \$setting => \$type ){
+        if (is_object(\$type)){
+            return $projNameInit_construct_settings(\$settings[\$setting], \$type);
+        }
+        \$retval[\$setting]['type'] = \$type;
+        \$retval[\$setting]['contents'] = \$settings[\$setting];
+    }
+    return 
+}
+
+function $projNameInit_post () {
+    check_ajax_referer( '$projNameInit_', 'nonce' );
+    \$body = file_get_contents('php://input');
+    \$body = trim(\$body, \"\xEF\xBB\xBF\");
+    \$body = json_decode(\$body);
+    \$data = \$body -> data;
+    switch (\$data -> type) {
+        case 'post_settings':
+            \$settings = $projNameInit_construct_settings(\$data, get_option('$projNameInit_settings_values'));
+            update_option('$projNameInit_settings', \$settings);
+            echo json_encode(\$settings);
+            wp_die();
+        default:
+            http_response_code(400);
+            echo 'Invalid post request type: ' . \$data -> type;
+            wp_die();
+    }
+}
+
+
+function $projNameInit_get () {
+    check_ajax_referer( '$projNameInit_', 'nonce' );
+    switch (\$_GET['type']) {
+        case 'get_settings':
+            echo json_encode( get_option('$projNameInit_settings') );
+            break;
+        default: 
+            echo 'invalid get command: ' . json_encode(\$_GET);
+            break;
+    }
+    wp_die();
+}
+
+if (is_admin()) {
+    add_action( 'admin_menu', '$projNameInit_register_dash');
+    add_action( 'admin_init', '$projNameInit_on_initial');
+}
+
+function $projNameInit_register_dash () {
+    add_menu_page(
+        'PLUGIN SETTINGS PAGE TITLE', 
+        'PLUGIN SETTINGS MENU TITLE', 
+        'manage_options',
+        '$projNameInit_settings',
+        '$projNameInit_menu_page'
+    );
+}
+
+function $projNameInit_menu_page() {
+    \$nonce = wp_create_nonce( '$projNameInit_' );
+    ?>
+    <script>window.ajaxValues = {
+        ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
+        nonce: '<?php echo \$nonce ?>'
+    }</script><?php
+    require plugin_dir_path(__FILE__) . 'index.html.php';
+}
+
+function $projNameInit_make_shortcode_contents (){
+    \$settings=get_option('$projNameInit_settings');
+    
+}
+
+function $projNameInit_script_and_style() {
+    require plugin_dir_path(__FILE__) . '$projNameInit_.js.php'
+    require plugin_dir_path(__FILE__) . '$projNameInit_.css.php'
+}
+add_action('wp_head', '$projNameInit_script_and_style');
+
+add_shortcode('zents_banner', '$projNameInit_make_banner');" > "$project_directory/$plugin_name.php"
                     fi
                 else
                     echo "exiting..."
@@ -823,23 +962,23 @@ create [app]: creates a React application [app]
             react-redux, and redux-thunk. Additionally, 
             typical redux actions and reducers templates 
             will also be set up.
-        --basic prevents all automatic repository 
+        -b --basic prevents all automatic repository 
             installation
-        --wp creates the application and 
+        -w --wp creates the application and 
             sets it to build for insertion into 
             wordpress plugins.
-        --socket includes socket.io-client for 
+        -k --socket includes socket.io-client for 
             websocketing, and modifies the actions file 
             accordingly.
-        --ajax includes request-promise for ajax 
+        -a --ajax includes request-promise for ajax 
             requests, and modifies the actions file 
             accordingly. Redundant if --socket is used.
-        --server includes mongodb and mongoose, includes 
+        -v --server includes mongodb and mongoose, includes 
             socket.io if --socket was used.
-        --no-redux prevents automatic installation of 
+        -n --no-redux prevents automatic installation of 
             redux, react-redux, and redux-thunk. 
             Redundant if --basic is used.
-        --silent prevents indicator sound playing at completion
+        -s --silent prevents indicator sound playing at completion
 open [app]: opens the root directory of the specified application.
 build [app]: builds the application. If this was created 
     with the --wp setting, it builds for insertion into a wordpress 
@@ -851,10 +990,10 @@ build [app]: builds the application. If this was created
 list: lists applications in reactApp directory, and current shortcuts.
 reset [app]: clears and reinstalls node repositories within [app].
 common: allows for copying of common files to a central directory ()
-     --add ) saves a file or directory to your common files store, allowing you to add a category to it.
-     --get ) copies common files to the target app. 
+     -+ --add ) saves a file or directory to your common files store, allowing you to add a category to it.
+     -g --get ) copies common files to the target app. 
      If no category is given, all existing common files are copied. 
-     --edit allows you to edit a category by adding 
+     -e --edit allows you to edit a category by adding 
         or removing files currently in your common storage to a 
         category.
      -c=[category] sets the category being used.
