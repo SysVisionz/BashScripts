@@ -548,6 +548,10 @@ export const requestTemplate = () => {
         read -p "Official Full Name for your Plugin: " oname
         read -p "Plugin Base Directory: " plugin
         read -p "subdirectory, if any: " subdir
+        read -p "Plugin Description: " descripOf
+        read -p "Plugin Version: " versionOf
+        read -p "Plugin Author: " authorOf
+        read -p "Plugin Website: " websiteOf
         if [[ $ajax || $socket ]]; then
             echo "has_requests=true" > for-wp
         fi
@@ -616,6 +620,15 @@ your wordpress projects?"
                     * ) break
                 esac
             done <"$file"
+            if [[ ! $official_name ]]; then
+                echo "No official name listed for your plugin within settings."
+                echo "Would you like to add an official name?"
+                yesNo
+                if [[ $? == 1 ]]; then
+                    read -p "Official Full Name for your Plugin: " official_name
+                    echo "official_name=\"$official_name\"">>"$reactDir/$target/for-wp"
+                fi
+            fi
             project_directory="$wpDir/$plugin_name"
             if [[ "$plugin_subdirectory" != '' ]]; then
                 full_directory="$project_directory/$plugin_subdirectory";
@@ -650,40 +663,21 @@ Would you like to create the project now?"
                         mkdir "$full_directory"
                         echo "<?php 
 /*
-Plugin Name: 
-Description: 
-Version: 0.1
-Author: 
-Author URI: 
+Plugin Name: $official_name
+Description: $descripOf
+Version: $versionOf
+Author: $authorOf
+Author URI: $websiteOf
 */
 
-//available settings types are text, textbox, radio, 
 function $projNameInit_on_initial () {
     register_setting('$projNameInit_components', '$projNameInit_settings');
-    register_setting('$projNameInit_components', '$projNameInit_settings_values', array(
-        value0 => 'type',
-        value1 => array(
-            value0 => 'type'
-        )
-    ))
 }
 
 add_action('wp_ajax_nopriv_$projNameInit_get', '$projNameInit_get');
 add_action('wp_ajax_nopriv_$projNameInit_post', '$projNameInit_post');
 add_action('wp_ajax_$projNameInit_get', '$projNameInit_get');
 add_action('wp_ajax_$projNameInit_post', '$projNameInit_post');
-
-function $projNameInit_construct_settings (\$settings, \$settings_values) {
-    \$retval = array();
-    foreach (\$settings_values as \$setting => \$type ){
-        if (is_object(\$type)){
-            return $projNameInit_construct_settings(\$settings[\$setting], \$type);
-        }
-        \$retval[\$setting]['type'] = \$type;
-        \$retval[\$setting]['contents'] = \$settings[\$setting];
-    }
-    return 
-}
 
 function $projNameInit_post () {
     check_ajax_referer( '$projNameInit_', 'nonce' );
@@ -693,7 +687,8 @@ function $projNameInit_post () {
     \$data = \$body -> data;
     switch (\$data -> type) {
         case 'post_settings':
-            \$settings = $projNameInit_construct_settings(\$data, get_option('$projNameInit_settings_values'));
+            \$settings = \$data;
+            // put your settings changes on receiving that data here.
             update_option('$projNameInit_settings', \$settings);
             echo json_encode(\$settings);
             wp_die();
@@ -725,8 +720,8 @@ if (is_admin()) {
 
 function $projNameInit_register_dash () {
     add_menu_page(
-        'PLUGIN SETTINGS PAGE TITLE', 
-        'PLUGIN SETTINGS MENU TITLE', 
+        '$official_name Settings', 
+        '$official_name', 
         'manage_options',
         '$projNameInit_settings',
         '$projNameInit_menu_page'
@@ -753,7 +748,30 @@ function $projNameInit_script_and_style() {
 }
 add_action('wp_head', '$projNameInit_script_and_style');
 
-add_shortcode('zents_banner', '$projNameInit_make_banner');" > "$project_directory/$plugin_name.php"
+class $projNameInit_Widget extends WP_Widget {
+    public function widget ($args, $instance){
+      $title = apply_filters( 'widget_title', $instance[ 'title' ] );
+       echo $args['before_widget'] . $args['before_title'] . $title . $args['after_title'];
+
+        //put widget contents here
+
+       echo $args['after_widget'];
+    }
+
+    public function update ( $new_instance, $old_instance ){
+        $instance = $old_instance;
+        $instance[ 'title' ] = strip_tags( $new_instance[ 'title' ] );
+        return $instance;
+    }
+}
+
+function register_$projNameInit_widget() {
+    register_widget( '$projNameInit_Widget');
+}
+
+add_action( 'widgets_init', '$projNameInit_widget' );
+
+add_shortcode('$projNameInit_banner', '$projNameInit_make_banner');" > "$project_directory/$plugin_name.php"
                     fi
                 else
                     echo "exiting..."
