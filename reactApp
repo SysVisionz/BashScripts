@@ -393,6 +393,39 @@ ReactDOM.render((<Provider store={createStore(combineReducers, {}, applyMiddlewa
 // unregister() to register() below. Note this comes with some pitfalls.
 // Learn more about service workers: http://bit.ly/CRA-PWA
 serviceWorker.unregister();" > index.js;
+        echo "import React, {Component} from 'react'
+import {connect} from 'react-redux';
+import PropTypes from 'prop-types';
+import './App.css' from './';
+import {} from './actions';
+
+const mapStateToProps = state => {
+    const {
+
+    } = state.
+    return {
+
+    }
+}
+
+class App extends Component {
+    
+    constructor() {
+        super()
+
+    }
+    render() {
+        return (
+            <div>ReactReduxClass</div>
+        )
+    }
+}
+
+App.propTypes = {
+
+}
+
+export default connect (mapStateToProps, {}) (App);" > App.js;
         mkdir reducers
         mkdir actions
         cd reducers
