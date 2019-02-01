@@ -457,7 +457,11 @@ export default (state=INITIAL_STATE, action) => {
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    return ajax_url + \"?action=$projNameInit_post=&nonce=\" + nonce;
+    let retval = ajax_url + \"?action=$projNameInit_post=&nonce=\" + nonce
+    for (const i in config) {
+        retval+= \"&\" + i + \"=\" + config[i];
+    }
+    return retval;
 }
 const getURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
@@ -469,9 +473,10 @@ const getURI = config => {
     return retval;
 }
 "
-            url="url: getURI({
+            getUrl="url: getURI({
                 type: 'get_settings'
             })"
+            postURL="url: postURI()"
         else
             special=""
             url="url: window.location.origin"
@@ -487,12 +492,36 @@ export const update = data => {
     }
 }
 
-export const requestTemplate = () => {
+export const getRequestTemplate = () => {
     return dispatch => {
         request({
-            method: ,
-            $url,
-            json: ,
+            method: 'GET',
+            $getUrl,
+            json: true,
+            headers: {
+            },
+            body: {
+            }
+        }).then(res => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        }).catch(err => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        });
+    }
+}
+
+export const postRequestTemplate = () => {
+    return dispatch => {
+        request({
+            method: 'GET',
+            $postUrl,
+            json: true,
             headers: {
             },
             body: {
@@ -515,7 +544,7 @@ export const socketTemplate = ( socket) => {
     return dispatch => {
         request({
             method: '',
-            $url,
+            url: ,
             json: ,
             headers: {
             },
@@ -540,12 +569,36 @@ export const update = data => {
     }
 }
 
-export const requestTemplate = () => {
+export const getRequestTemplate = () => {
     return dispatch => {
         request({
-            method: ,
-            $url,
-            json: ,
+            method: 'GET',
+            $getUrl,
+            json: true,
+            headers: {
+            },
+            body: {
+            }
+        }).then(res => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        }).catch(err => {
+            dispatch({
+                type: '',
+                payload: 
+            });
+        });
+    }
+}
+
+export const postRequestTemplate = () => {
+    return dispatch => {
+        request({
+            method: 'GET',
+            $postUrl,
+            json: true,
             headers: {
             },
             body: {
