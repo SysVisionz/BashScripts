@@ -365,7 +365,7 @@ if [[ "$command" == "create" ]]; then
     create-react-app "$target"
     mkdir "$reactDir/$target/src/components"
     cd "$target"
-    if [[ !$basic ]]; then
+    if [[ ! $basic ]]; then
         npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator
     fi
     if [[ $ajax ]]; then
