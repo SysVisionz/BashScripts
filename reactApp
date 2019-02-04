@@ -284,12 +284,12 @@ fi
 
 function checkCommand()
 {
+    checkShortcut "$1"
+    if [[ $? == 1 ]]; then
+        break;
+    fi
     if [[ -d "$reactDir/$1" || $command ]]; then
         target="$1"
-        checkShortcut "$1"
-        if [[ $? == 1 ]]; then
-            break;
-        fi
     else
         command="$1"
     fi
