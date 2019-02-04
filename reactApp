@@ -355,6 +355,8 @@ for i in "$@"; do
         --get ) get=true;;
         -e ) ;&
         --edit ) edit=true;;
+        -h ) ;&
+        --help ) $command='help';;
         * ) checkCommand "$i";;
     esac
 done
@@ -387,7 +389,7 @@ import * as serviceWorker from './serviceWorker';
 
 ReactDOM.render((<Provider store={createStore(combineReducers, {}, applyMiddleware(ReduxThunk)) }>
                 <App />
-        </Provider>), document.getElementById('root'));
+        </Provider>), document.getElementById('$target-root'));
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
@@ -655,7 +657,7 @@ plugin_subdirectory=\"$subdir\"" >> for-wp
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
-    <div id=\"root\"></div>
+    <div id=\"$target-root\"></div>
   </body>
 </html>" > index.html
     elif [[ $server ]]; then
@@ -677,7 +679,7 @@ elif [[ "$command" == "reset" ]]; then
         rm -rf node_modules
         npm install
 elif [[ "$command" == "build" ]]; then
-    if [[ -d "$reactDir/$target" ]]; then
+    if [[ "$target" && -d "$reactDir/$target" ]]; then
         cd "$reactDir/$target"
         npm run build
         if [[ ! $silent ]]; then
@@ -725,14 +727,14 @@ your wordpress projects?"
                 dirCode="<script>window.ajaxValues = {
         ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
         nonce: '<?php echo wp_create_nonce( "$projNameInit" ) ?>',
-        directory: '<?php plugins_url() . '/$plugin_name$plugin_subdirectory' ?>'
+        directory: '<?php plugins_url() . '/$plugin_name/$plugin_subdirectory' ?>'
     }</script>
     "
             else
                 dirCode=""
             fi
             cd build
-            dirCode="$dirCode<?php \$directory = plugins_url() . '/$plugin_name$plugin_subdirectory' ?>"
+            dirCode="$dirCode<?php \$directory = plugins_url() . '/$plugin_name/$plugin_subdirectory' ?>"
             mv index.html index.html.php
             echo "$dirCode
             $(cat index.html.php)" > index.html.php
@@ -908,10 +910,13 @@ Continue?"
                 echo "Replace $wpDir/$plugin_name.zip?"
                 yesNo
                 if [[ $? == 1 ]]; then
-                    zip -r -q "$wpDir/$plugin_name.zip" "$wpDir/$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
+                    cd $wpDir
+                    rm "$plugin_name.zip"
+                    zip -r -q "$plugin_name.zip" "$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
                 fi
             else 
-                zip -r -q "$wpDir/$plugin_name.zip" "$wpDir/$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
+                cd $wpDir
+                zip -r -q "$plugin_name.zip" "$plugin_name" && echo "successfully created project zip file" || echo "failed to create project zip file"
             fi
         fi
     else
@@ -1050,12 +1055,12 @@ elif [[ "$command" == "open" ]]; then
     xdg-open "$reactDir/$target"
 elif [[ "$command" == "shortcut" && -d "$reactDir/$target" ]]; then
     makeShortcut "$shortcut" "$target"
-elif [[ $target && -d "$reactDir/$target" ]]; then
+elif [[ "$target" && -d "$reactDir/$target" ]]; then
     cd "$reactDir/$target"
     npm start
 elif [[ "$command" == "help" ]]; then
     echo "current reactApp Directory: $reactDir
-[app]: runs [app].
+[app]: runs [app] with npm start.
 shortcut [shortcut target] -s=[shortcut name]: makes the used name
     into a shortcut to the specified target application.
     shortcuts can then be used to target that file.
