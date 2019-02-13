@@ -916,8 +916,8 @@ $full_directory
 Continue?"
                     yesNo
                     if [[ $? == 1 ]]; then
-                        if [[ ! "$file_name" == '' ]]; then
-                            rm "$file_name"
+                        if [[ ! "${file_name[0]}" == '' ]]; then
+                            rm "${file_name[0]}"
                         fi
                         if [[ -d "$full_directory/static" ]]; then
                             rm -r "$full_directory/static"
