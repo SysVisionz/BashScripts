@@ -434,7 +434,7 @@ serviceWorker.unregister();" > index.js;
         echo "import React, {Component} from 'react'
 import {connect} from 'react-redux';
 import PropTypes from 'prop-types';
-import './App.css' from './';
+import './App.css';
 import {} from './actions';
 
 const mapStateToProps = state => {
@@ -492,7 +492,7 @@ export default (state=INITIAL_STATE, action) => {
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    let retval = ajax_url + \"?action=$initials_post&nonce=\" + nonce
+    let retval = ajax_url + \"?action="$initials"_post&nonce=\" + nonce
     for (const i in config) {
         retval+= \"&\" + i + \"=\" + config[i];
     }
@@ -500,7 +500,7 @@ const postURI = config => {
 }
 const getURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    let retval = ajax_url + \"?action=$initials_get\";
+    let retval = ajax_url + \"?action="$initials"_get\";
     config = {nonce, ...config}
     for (const i in config) {
         retval+= \"&\" + i + \"=\" + config[i];
@@ -783,17 +783,17 @@ Author: $authorOf
 Author URI: $websiteOf
 */
 
-function $initials_on_initial () {
-    register_setting('$initials_components', '$initials_settings');
+function "$initials"_on_initial () {
+    register_setting('"$initials"_components', '"$initials"_settings');
 }
 
-add_action('wp_ajax_nopriv_$initials_get', '$initials_get');
-add_action('wp_ajax_nopriv_$initials_post', '$initials_post');
-add_action('wp_ajax_$initials_get', '$initials_get');
-add_action('wp_ajax_$initials_post', '$initials_post');
+add_action('wp_ajax_nopriv_"$initials"_get', '"$initials"_get');
+add_action('wp_ajax_nopriv_"$initials"_post', '"$initials"_post');
+add_action('wp_ajax_$initials_get', '"$initials"_get');
+add_action('wp_ajax_$initials_post', '"$initials"_post');
 
 function $initials_post () {
-    check_ajax_referer( '$initials_', 'nonce' );
+    check_ajax_referer( '"$initials"_', 'nonce' );
     \$body = file_get_contents('php://input');
     \$body = trim(\$body, \"\xEF\xBB\xBF\");
     \$body = json_decode(\$body);
@@ -813,11 +813,11 @@ function $initials_post () {
 }
 
 
-function $initials_get () {
-    check_ajax_referer( '$initials_', 'nonce' );
+function "$initials"_get () {
+    check_ajax_referer( '"$initials"_', 'nonce' );
     switch (\$_GET['type']) {
         case 'get_settings':
-            echo json_encode( get_option('$initials_settings') );
+            echo json_encode( get_option('"$initials"_settings') );
             break;
         default: 
             echo 'invalid get command: ' . json_encode(\$_GET);
@@ -827,22 +827,22 @@ function $initials_get () {
 }
 
 if (is_admin()) {
-    add_action( 'admin_menu', '$initials_register_dash');
-    add_action( 'admin_init', '$initials_on_initial');
+    add_action( 'admin_menu', '"$initials"_register_dash');
+    add_action( 'admin_init', '"$initials"_on_initial');
 }
 
-function $initials_register_dash () {
+function "$initials"_register_dash () {
     add_menu_page(
         '$official_name Settings', 
         '$official_name', 
         'manage_options',
-        '$initials_settings',
-        '$initials_menu_page'
+        '"$initials"_settings',
+        '"$initials"_menu_page'
     );
 }
 
-function $initials_menu_page() {
-    \$nonce = wp_create_nonce( '$initials_' );
+function "$initials"_menu_page() {
+    \$nonce = wp_create_nonce( '"$initials"_' );
     ?>
     <script>window.ajaxValues = {
         ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
@@ -851,17 +851,17 @@ function $initials_menu_page() {
     require plugin_dir_path(__FILE__) . 'index.html.php';
 }
 
-function $initials_make_shortcode_contents (){
-    \$settings=get_option('$initials_settings');
+function "$initials"_make_shortcode_contents (){
+    \$settings=get_option('"$initials"_settings');
 }
 
-function $initials_script_and_style() {
-    require plugin_dir_path(__FILE__) . '$initials_.js.php'
-    require plugin_dir_path(__FILE__) . '$initials_.css.php'
+function "$initials"_script_and_style() {
+    require plugin_dir_path(__FILE__) . '"$initials"_.js.php'
+    require plugin_dir_path(__FILE__) . '"$initials"_.css.php'
 }
-add_action('wp_head', '$initials_script_and_style');
+add_action('wp_head', '"$initials"_script_and_style');
 
-class $initials_Widget extends WP_Widget {
+class "$initials"_Widget extends WP_Widget {
     public function widget ($args, $instance){
       $title = apply_filters( 'widget_title', $instance[ 'title' ] );
        echo $args['before_widget'] . $args['before_title'] . $title . $args['after_title'];
@@ -878,13 +878,13 @@ class $initials_Widget extends WP_Widget {
     }
 }
 
-function register_$initials_widget() {
-    register_widget( '$initials_Widget');
+function register_"$initials"_widget() {
+    register_widget( '"$initials"_Widget');
 }
 
-add_action( 'widgets_init', '$initials_widget' );
+add_action( 'widgets_init', '"$initials"_widget' );
 
-add_shortcode('$initials_banner', '$initials_make_element');" > "$project_directory/$plugin_name.php"
+add_shortcode('"$initials"_banner', '"$initials"_make_element');" > "$project_directory/$plugin_name.php"
                     fi
                 else
                     echo "exiting..."
