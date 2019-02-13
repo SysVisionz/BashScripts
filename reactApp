@@ -16,6 +16,15 @@ function checkCategory()
     return 0
 }
 
+function removeTrail () {
+    retDir=$1
+    length=${#retDir}-1
+    last="${retDir:$length}"
+    if [[ $last == "/" ]]; then
+        retDir="${1:0:$length}"
+    fi
+}
+
 function projNameInitGet () {
     projNameInit=''
     for word in $1; do
@@ -269,11 +278,15 @@ fi
 # pulls directory for react applications from application data or allows user to set that directory.
 if [[ -f "$appDir/reactDir.tmp" ]]; then
     reactDir=$(<$appDir/reactDir.tmp)
+    removeTrail $reactDir
+    reactDir=$retDir
 else
     changeDirectory
 fi
 if [[ -f "$appDir/wpDir.tmp" ]]; then
     wpDir=$(<$appDir/wpDir.tmp)
+    removeTrail $wpDir
+    wpDir=$retDir
 fi
 if [[ -f "$appDir/categories.tmp" ]]; then
     file="$appDir/categories.tmp"
@@ -368,9 +381,12 @@ if [[ "$command" == "create" ]]; then
     mkdir "$reactDir/$target/src/components"
     cd "$target"
     if [[ ! $basic ]]; then
+        if [[ $wp ]]; then
+            ajax=true
+        fi
         npm i --save react-router-dom && npm i --save react-transition-group && npm i --save-dev prop-types && npm i --save validator
     fi
-    if [[ $ajax ]]; then
+    if [[ $ajax || $socket ]]; then
         npm i --save request-promise
     fi
     if [[ $socket ]]; then
@@ -452,12 +468,7 @@ export default (state=INITIAL_STATE, action) => {
     }
 }" > reduxReducer.js
         cd ../actions
-        if [[ $wp ]]; then
-            projNameInitGet "$plugin_name"
-            read -p "What would you like to use for this project's general functional prefix (nonce values, functions, etc)? Default is [$projNameInit]: " initials
-            initials=${initials:-$projNameInit}
-        fi
-        if [[ $wp ]] && [[ $ajax || $socket ]]; then
+        if [[ $wp && $ajax ]]; then
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
@@ -642,7 +653,10 @@ export const postRequestTemplate = () => {
         read -p "Plugin Version: " versionOf
         read -p "Plugin Author: " authorOf
         read -p "Plugin Website: " websiteOf
-        if [[ $ajax || $socket ]]; then
+        projNameInitGet "$oname"
+        read -p "What would you like to use for this project's general functional prefix (nonce values, functions, etc)? Default is [$projNameInit]: " initials
+        initials=${initials:-$projNameInit}
+        if [[ ! $basic ]]; then
             echo "has_requests=true" > for-wp
         fi
         echo "official_name=\"$oname\"
@@ -1082,13 +1096,14 @@ create [app]: creates a React application [app]
             installation
         -w --wp creates the application and 
             sets it to build for insertion into 
-            wordpress plugins.
+            wordpress plugins. Automatically includes ajax
+            unless --basic is used.
         -k --socket includes socket.io-client for 
             websocketing, and modifies the actions file 
             accordingly.
         -a --ajax includes request-promise for ajax 
             requests, and modifies the actions file 
-            accordingly. Redundant if --socket is used.
+            accordingly. Redundant if --socket or --wp is used.
         -v --server includes mongodb and mongoose, includes 
             socket.io if --socket was used.
         -n --no-redux prevents automatic installation of 
