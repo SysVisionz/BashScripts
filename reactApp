@@ -712,7 +712,6 @@ your wordpress projects?"
                     initials=* ) initials="${line:10:-1}";;
                     * ) break
                 esac
-                echo "$line"
             done <"$file"
             if [[ ! $official_name ]]; then
                 echo "No official name listed for your plugin within settings."
