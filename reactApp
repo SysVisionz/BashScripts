@@ -364,7 +364,7 @@ done
 # create command creates a new react react app with the given name.
 if [[ "$command" == "create" ]]; then
     cd "$reactDir"
-    create-react-app "$target"
+    create-react-app "$target" || { echo 'create-react-app failed...'; exit 1; }
     mkdir "$reactDir/$target/src/components"
     cd "$target"
     if [[ ! $basic ]]; then
@@ -454,12 +454,14 @@ export default (state=INITIAL_STATE, action) => {
         cd ../actions
         if [[ $wp ]]; then
             projNameInitGet "$plugin_name"
+            read -p "What would you like to use for this project's general functional prefix (nonce values, functions, etc)? Default is [$projNameInit]: " initials
+            initials=${initials:-$projNameInit}
         fi
         if [[ $wp ]] && [[ $ajax || $socket ]]; then
             special="
 const postURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    let retval = ajax_url + \"?action=$projNameInit_post=&nonce=\" + nonce
+    let retval = ajax_url + \"?action=$initials_post&nonce=\" + nonce
     for (const i in config) {
         retval+= \"&\" + i + \"=\" + config[i];
     }
@@ -467,7 +469,7 @@ const postURI = config => {
 }
 const getURI = config => {
     const {nonce, ajax_url} = window.ajaxValues;
-    let retval = ajax_url + \"?action=$projNameInit_get\";
+    let retval = ajax_url + \"?action=$initials_get\";
     config = {nonce, ...config}
     for (const i in config) {
         retval+= \"&\" + i + \"=\" + config[i];
@@ -645,7 +647,9 @@ export const postRequestTemplate = () => {
         fi
         echo "official_name=\"$oname\"
 plugin_name=\"$plugin\"
-plugin_subdirectory=\"$subdir\"" >> for-wp
+plugin_subdirectory=\"$subdir\"
+initials=\"$initials\"" >> for-wp
+
     fi
     if [[ $wp ]]; then
         cd ./public
@@ -681,7 +685,7 @@ elif [[ "$command" == "reset" ]]; then
 elif [[ "$command" == "build" ]]; then
     if [[ "$target" && -d "$reactDir/$target" ]]; then
         cd "$reactDir/$target"
-        npm run build
+        npm run build || { echo 'build failed...'; exit 1; }
         if [[ ! $silent ]]; then
             paplay "$HOME/Music/system-ready.ogg"
         fi
@@ -705,8 +709,10 @@ your wordpress projects?"
                     plugin_name=* ) plugin_name="${line:13:-1}";;
                     plugin_subdirectory=* ) plugin_subdirectory="${line:21:-1}";;
                     has_requests=* ) has_requests="${line:13}";;
+                    initials=* ) initials="${line:10:-1}";;
                     * ) break
                 esac
+                echo "$line"
             done <"$file"
             if [[ ! $official_name ]]; then
                 echo "No official name listed for your plugin within settings."
@@ -726,7 +732,7 @@ your wordpress projects?"
             if [[ $has_requests ]]; then
                 dirCode="<script>window.ajaxValues = {
         ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
-        nonce: '<?php echo wp_create_nonce( "$projNameInit" ) ?>',
+        nonce: '<?php echo wp_create_nonce( '$initials' ) ?>',
         directory: '<?php plugins_url() . '/$plugin_name/$plugin_subdirectory' ?>'
     }</script>
     "
@@ -758,17 +764,17 @@ Author: $authorOf
 Author URI: $websiteOf
 */
 
-function $projNameInit_on_initial () {
-    register_setting('$projNameInit_components', '$projNameInit_settings');
+function $initials_on_initial () {
+    register_setting('$initials_components', '$initials_settings');
 }
 
-add_action('wp_ajax_nopriv_$projNameInit_get', '$projNameInit_get');
-add_action('wp_ajax_nopriv_$projNameInit_post', '$projNameInit_post');
-add_action('wp_ajax_$projNameInit_get', '$projNameInit_get');
-add_action('wp_ajax_$projNameInit_post', '$projNameInit_post');
+add_action('wp_ajax_nopriv_$initials_get', '$initials_get');
+add_action('wp_ajax_nopriv_$initials_post', '$initials_post');
+add_action('wp_ajax_$initials_get', '$initials_get');
+add_action('wp_ajax_$initials_post', '$initials_post');
 
-function $projNameInit_post () {
-    check_ajax_referer( '$projNameInit_', 'nonce' );
+function $initials_post () {
+    check_ajax_referer( '$initials_', 'nonce' );
     \$body = file_get_contents('php://input');
     \$body = trim(\$body, \"\xEF\xBB\xBF\");
     \$body = json_decode(\$body);
@@ -777,7 +783,7 @@ function $projNameInit_post () {
         case 'post_settings':
             \$settings = \$data;
             // put your settings changes on receiving that data here.
-            update_option('$projNameInit_settings', \$settings);
+            update_option('$initials_settings', \$settings);
             echo json_encode(\$settings);
             wp_die();
         default:
@@ -788,11 +794,11 @@ function $projNameInit_post () {
 }
 
 
-function $projNameInit_get () {
-    check_ajax_referer( '$projNameInit_', 'nonce' );
+function $initials_get () {
+    check_ajax_referer( '$initials_', 'nonce' );
     switch (\$_GET['type']) {
         case 'get_settings':
-            echo json_encode( get_option('$projNameInit_settings') );
+            echo json_encode( get_option('$initials_settings') );
             break;
         default: 
             echo 'invalid get command: ' . json_encode(\$_GET);
@@ -802,22 +808,22 @@ function $projNameInit_get () {
 }
 
 if (is_admin()) {
-    add_action( 'admin_menu', '$projNameInit_register_dash');
-    add_action( 'admin_init', '$projNameInit_on_initial');
+    add_action( 'admin_menu', '$initials_register_dash');
+    add_action( 'admin_init', '$initials_on_initial');
 }
 
-function $projNameInit_register_dash () {
+function $initials_register_dash () {
     add_menu_page(
         '$official_name Settings', 
         '$official_name', 
         'manage_options',
-        '$projNameInit_settings',
-        '$projNameInit_menu_page'
+        '$initials_settings',
+        '$initials_menu_page'
     );
 }
 
-function $projNameInit_menu_page() {
-    \$nonce = wp_create_nonce( '$projNameInit_' );
+function $initials_menu_page() {
+    \$nonce = wp_create_nonce( '$initials_' );
     ?>
     <script>window.ajaxValues = {
         ajax_url: '<?php echo admin_url( 'admin-ajax.php' )?>',
@@ -826,17 +832,17 @@ function $projNameInit_menu_page() {
     require plugin_dir_path(__FILE__) . 'index.html.php';
 }
 
-function $projNameInit_make_shortcode_contents (){
-    \$settings=get_option('$projNameInit_settings');
+function $initials_make_shortcode_contents (){
+    \$settings=get_option('$initials_settings');
 }
 
-function $projNameInit_script_and_style() {
-    require plugin_dir_path(__FILE__) . '$projNameInit_.js.php'
-    require plugin_dir_path(__FILE__) . '$projNameInit_.css.php'
+function $initials_script_and_style() {
+    require plugin_dir_path(__FILE__) . '$initials_.js.php'
+    require plugin_dir_path(__FILE__) . '$initials_.css.php'
 }
-add_action('wp_head', '$projNameInit_script_and_style');
+add_action('wp_head', '$initials_script_and_style');
 
-class $projNameInit_Widget extends WP_Widget {
+class $initials_Widget extends WP_Widget {
     public function widget ($args, $instance){
       $title = apply_filters( 'widget_title', $instance[ 'title' ] );
        echo $args['before_widget'] . $args['before_title'] . $title . $args['after_title'];
@@ -853,13 +859,13 @@ class $projNameInit_Widget extends WP_Widget {
     }
 }
 
-function register_$projNameInit_widget() {
-    register_widget( '$projNameInit_Widget');
+function register_$initials_widget() {
+    register_widget( '$initials_Widget');
 }
 
-add_action( 'widgets_init', '$projNameInit_widget' );
+add_action( 'widgets_init', '$initials_widget' );
 
-add_shortcode('$projNameInit_banner', '$projNameInit_make_banner');" > "$project_directory/$plugin_name.php"
+add_shortcode('$initials_banner', '$initials_make_element');" > "$project_directory/$plugin_name.php"
                     fi
                 else
                     echo "exiting..."
