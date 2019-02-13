@@ -29,12 +29,18 @@ function projNameInitGet () {
     projNameInit=''
     for word in $1; do
         projNameInit+="${word:0:1}"
+        word=${word:1}
         while true; do
-            if [[ ! "${word%%_*}" == "$word" ]]; then 
-                word="${word#*_}"
-                projNameInit+="${word:0:1}"
-            elif [[ $word =~ [A-Z] ]]; then
-                word="${word#*[:upper:]}"
+            if [[ ! "${word%%_*}" == "$word" ]]  || [[ $word =~ [A-Z] ]]; then 
+                firstUnder="${word%%_*}"
+                firstUnder=${#firstUnder}
+                firstCap="${word%%[[:upper:]]*}"
+                firstCap=${#firstCap}
+                if [[ $firstCap > $firstUnder ]]; then
+                    word=${word:$firstUnder} 
+                else
+                    word=${word:$firstCap}
+                fi
                 projNameInit+="${word:0:1}"
                 word="${word:1}"
             else
