@@ -908,16 +908,18 @@ Would you like to create the subdirectory now?"
                 fi
             fi
             if [[ -d "$full_directory" ]]; then
-                file_name="$(find $full_directory -maxdepth 1 -name precache*)"
-                if [[ ! "$file_name" == '' || -d "$full_directory/static" ]]; then
-                    echo "WARNING: this will fully replace 
-the react build files within 
+                if [[ ! "${file_name[0]}" == '' || -d "$full_directory/static" ]]; then
+                    echo "WARNING: this will delete and fully replace 
+the react build files and index.html.php file within
 $full_directory
 Continue?"
                     yesNo
                     if [[ $? == 1 ]]; then
-                        if [[ ! "${file_name[0]}" == '' ]]; then
-                            rm "${file_name[0]}"
+                        while IFS= read -r -d $'\0'; do
+                            rm "$REPLY"
+                        done < <(find "$full_directory" -maxdepth 1 -name precache* -print0 )
+                        if [[ -f "$full_directory/index.html.php" ]]; then
+                            rm "$full_directory/index.html.php"
                         fi
                         if [[ -d "$full_directory/static" ]]; then
                             rm -r "$full_directory/static"
