@@ -16,6 +16,13 @@ function checkCategory()
     return 0
 }
 
+function beep() {
+  ( \speaker-test --frequency $1000 --test sine )&
+  pid=$!
+  \sleep 0.3s
+  \kill -9 $pid
+}
+
 function removeTrail () {
     retDir=$1
     length=${#retDir}-1
@@ -400,7 +407,7 @@ if [[ "$command" == "create" ]]; then
          npm i --save socket.io-client
     fi
     if [[ ! $silent ]]; then
-        paplay "$HOME/Music/system-ready.ogg"
+        beep
     fi
     if [[ $wp ]]; then
         read -p "Official Full Name for your Plugin: " oname
@@ -692,11 +699,11 @@ initials=\"$initials\"" >> for-wp
             npm i --save socket.io
         fi
         if [[ ! $silent ]]; then
-            paplay $HOME/Music/system-ready.ogg
+            beep
         fi
     else
         if [[ ! $silent ]]; then
-            paplay $HOME/Music/system-ready.ogg
+            beep
         fi
     fi
 # reset will reset the node modules and reinstall them.
@@ -709,7 +716,7 @@ elif [[ "$command" == "build" ]]; then
         cd "$reactDir/$target"
         npm run build || { echo 'build failed...'; exit 1; }
         if [[ ! $silent ]]; then
-            paplay "$HOME/Music/system-ready.ogg"
+            beep
         fi
         if [[ -f ./for-wp ]]; then
             if [[ ! $wpDir ]]; then
