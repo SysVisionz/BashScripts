@@ -387,6 +387,7 @@ if [[ "$command" == "create" ]]; then
     mkdir "$reactDir/$target/src/components"
     cd "$target"
     if [[ ! $basic ]]; then
+        npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
         if [[ $wp ]]; then
             ajax=true
         fi
@@ -398,10 +399,10 @@ if [[ "$command" == "create" ]]; then
     if [[ $socket ]]; then
          npm i --save socket.io-client
     fi
-        npm i --save redux &&  npm i --save react-redux && npm i --save redux-thunk
-        if [[ ! $silent ]]; then
-            paplay "$HOME/Music/system-ready.ogg"
-        fi
+    if [[ ! $silent ]]; then
+        paplay "$HOME/Music/system-ready.ogg"
+    fi
+    if [[ $wp ]]; then
         read -p "Official Full Name for your Plugin: " oname
         read -p "Plugin Base Directory: " plugin
         read -p "subdirectory, if any: " subdir
@@ -412,6 +413,7 @@ if [[ "$command" == "create" ]]; then
         projNameInitGet "$oname"
         read -p "What would you like to use for this project's general functional prefix (nonce values, functions, etc)? Default is [$projNameInit]: " initials
         initials=${initials:-$projNameInit}
+    fi
     if [[ ! $no_redux && ! $basic ]]; then
         cd src
         echo "import React from 'react';
