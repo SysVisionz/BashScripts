@@ -17,7 +17,7 @@ function checkCategory()
 }
 
 function beep() {
-  ( \speaker-test --frequency $1000 --test sine )&
+  ( \speaker-test --frequency 1000 --test sine )&
   pid=$!
   \sleep 0.3s
   \kill -9 $pid
