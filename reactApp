@@ -714,7 +714,7 @@ elif [[ "$command" == "reset" ]]; then
 elif [[ "$command" == "build" ]]; then
     if [[ "$target" && -d "$reactDir/$target" ]]; then
         cd "$reactDir/$target"
-        npm run build || { echo 'build failed...'; exit 1; }
+        npm run build || { echo 'build failed...'; beep; exit 1; }
         if [[ ! $silent ]]; then
             beep
         fi
