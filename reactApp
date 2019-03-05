@@ -566,7 +566,7 @@ export const postRequestTemplate = () => {
     return dispatch => {
         request({
             method: 'GET',
-            $postUrl,
+            $postURL,
             json: true,
             headers: {
             },
@@ -643,7 +643,7 @@ export const postRequestTemplate = () => {
     return dispatch => {
         request({
             method: 'GET',
-            $postUrl,
+            $postURL,
             json: true,
             headers: {
             },
