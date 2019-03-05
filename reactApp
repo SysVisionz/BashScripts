@@ -41,9 +41,11 @@ function projNameInitGet () {
             if [[ ! "${word%%_*}" == "$word" ]]  || [[ $word =~ [A-Z] ]]; then 
                 firstUnder="${word%%_*}"
                 firstUnder=${#firstUnder}
+                let "firstUnder++"
                 firstCap="${word%%[[:upper:]]*}"
                 firstCap=${#firstCap}
-                if [[ $firstCap > $firstUnder ]]; then
+                let "firstCap"
+                if [[ $firstCap < $firstUnder ]]; then
                     word=${word:$firstUnder} 
                 else
                     word=${word:$firstCap}
