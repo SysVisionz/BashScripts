@@ -489,12 +489,24 @@ export default combineReducers({
 
 }
 
+const toSub = (target, current) => {
+    for (const i in target){
+        if (typeof target[i] === 'object' && current[i]){
+            current[i] = toSub(target[i], current[i])
+        }
+        else {
+            current = {...current, [i]: target[i]};
+        }
+    }
+    return {...current};
+}
+
 export default (state=INITIAL_STATE, action) => {
     const {type, payload} = action;
     switch (type) {
-        case 'update':
-            return {...state, ...payload};
-        default:
+         case 'update':
+            return {...toSub(payload, state)};
+       default:
             return {...state};
     }
 }" > reduxReducer.js
