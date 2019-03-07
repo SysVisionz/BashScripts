@@ -812,10 +812,10 @@ function "$initials"_on_initial () {
 
 add_action('wp_ajax_nopriv_"$initials"_get', '"$initials"_get');
 add_action('wp_ajax_nopriv_"$initials"_post', '"$initials"_post');
-add_action('wp_ajax_$initials_get', '"$initials"_get');
-add_action('wp_ajax_$initials_post', '"$initials"_post');
+add_action('wp_ajax_"$initials"_get', '"$initials"_get');
+add_action('wp_ajax_"$initials"_post', '"$initials"_post');
 
-function $initials_post () {
+function "$initials"_post () {
     check_ajax_referer( '"$initials"_', 'nonce' );
     \$body = file_get_contents('php://input');
     \$body = trim(\$body, \"\xEF\xBB\xBF\");
@@ -825,7 +825,7 @@ function $initials_post () {
         case 'post_settings':
             \$settings = \$data;
             // put your settings changes on receiving that data here.
-            update_option('$initials_settings', \$settings);
+            update_option('"$initials"_settings', \$settings);
             echo json_encode(\$settings);
             wp_die();
         default:
