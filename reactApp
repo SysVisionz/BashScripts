@@ -691,7 +691,12 @@ export const postRequestTemplate = () => {
         echo "official_name=\"$oname\"
 plugin_name=\"$plugin\"
 plugin_subdirectory=\"$subdir\"
-initials=\"$initials\"" >> for-wp
+initials=\"$initials\"
+versionOf=\"$versionOf\"
+descripOf=\"$descripOf\"
+authorOf=\"$authorOf\"
+websiteOf=\"$websiteOf\"
+" >> for-wp
 
     fi
     if [[ $wp ]]; then
