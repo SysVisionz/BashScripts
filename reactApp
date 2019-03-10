@@ -616,7 +616,7 @@ export const socketTemplate = ( socket) => {
 
     }
 }" > templateActions.js
-            echo "export * from './socketRequestTemplateActions';" > index.js
+            echo "export * from './templateActions';" > index.js
         elif [[ $ajax ]]; then
             echo "import request from 'request-promise'
 $special
@@ -674,7 +674,7 @@ export const postRequestTemplate = () => {
         });
     }
 }" > templateActions.js
-            echo "export * from './requestTemplateActions';" > index.js
+            echo "export * from './templateActions';" > index.js
         else
             echo "export const update = data => {
     return {
