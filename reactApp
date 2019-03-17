@@ -498,6 +498,9 @@ const insertSub = (target, current) => {
             current[i] = target[i];
         }
     }
+    if (current.filter){
+        return current.filter(el => el !== undefined);
+    }
     return {...current};
 }
 
