@@ -522,7 +522,7 @@ export default (state=INITIAL_STATE, action) => {
          case 'insert':
             return insertSub(payload, state);
         case 'update':
-            return replaceSub(payload.prop, payload.value)
+            return replaceSub(payload.prop, payload.value, state)
        default:
             return {...state};
     }
