@@ -489,14 +489,29 @@ export default combineReducers({
 
 }
 
-const toSub = (target, current) => {
+const insertSub = (target, current) => {
     for (const i in target){
         if (typeof target[i] === 'object' && current[i]){
-            current[i] = toSub(target[i], current[i])
+            current[i] = insertSub(target[i], current[i])
         }
         else {
-            current = {...current, [i]: target[i]};
+            current[i] = target[i];
         }
+    }
+    return {...current};
+}
+
+const replaceSub = (target, new_val, current) => {
+    for (const i in target){
+        if (typeof target[i] === 'object' && current[i]){
+            current[i] = replaceSub(target[i], current[i])
+        }
+        else {
+            current[i] = new_val;
+        }
+    }
+    if (current.filter){
+        return current.filter(el => el !== undefined);
     }
     return {...current};
 }
@@ -504,12 +519,15 @@ const toSub = (target, current) => {
 export default (state=INITIAL_STATE, action) => {
     const {type, payload} = action;
     switch (type) {
-         case 'update':
-            return {...toSub(payload, state)};
+         case 'insert':
+            return insertSub(payload, state);
+        case 'update':
+            return replaceSub(payload.prop, payload.value)
        default:
             return {...state};
     }
-}" > reduxReducer.js
+}
+" > reduxReducer.js
         cd ../actions
         if [[ $wp && $ajax ]]; then
             special="
@@ -543,10 +561,17 @@ const getURI = config => {
             echo "import request from 'request-promise'
 import socketIOClient from 'socket.io-client';
 $special
-export const update = data => {
+export const update = (prop, value) => {
     return {
-        type: 'update', 
-        payload: data
+        type: 'update',
+        payload: {prop, value}
+    }
+}
+
+export const insert = (prop) => {
+    return {
+        type: 'insert',
+        payload: prop
     }
 }
 
@@ -577,7 +602,7 @@ export const getRequestTemplate = () => {
 export const postRequestTemplate = () => {
     return dispatch => {
         request({
-            method: 'GET',
+            method: 'POST',
             $postURL,
             json: true,
             headers: {
@@ -912,7 +937,7 @@ function register_"$initials"_widget() {
 
 add_action( 'widgets_init', '"$initials"_widget' );
 
-add_shortcode('"$initials"_banner', '"$initials"_make_element');" > "$project_directory/$plugin_name.php"
+add_shortcode('"$initials"_make_shortcode_contents', '"$initials"_make_element');" > "$project_directory/$plugin_name.php"
                     fi
                 else
                     echo "exiting..."
